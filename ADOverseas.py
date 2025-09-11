@@ -256,5 +256,8 @@ class ADOverseas():
 	def healthCheck():
 		return jsonify({'status': 'Success!'}), 200
 
-if __name__ == "__main__":
+def main():
 	app.run()
+
+if __name__ == "__main__":
+	main()
