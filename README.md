@@ -1,25 +1,6 @@
 # ADOverseas
 
-Start the container with docker-compose:
-
-```yaml
-services:
-  adoverseas:
-    image: ghcr.io/woodleighschool/adoverseas
-    container_name: adoverseas
-    environment:
-      - PUID=1002
-      - PGID=1002
-      - TZ=Australia/Melbourne
-      - AD_USERNAME=
-      - AD_PASSWORD=
-      - API_TOKEN=
-    volumes:
-      - path_to_appdata/config
-    ports:
-      - 3500:3500
-    restart: unless-stopped
-```
+Adds user to appropriate groups when notified by webhook
 
 ```bash
 curl -X POST http://localhost:3500/schedule \
