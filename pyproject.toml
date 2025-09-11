@@ -28,7 +28,7 @@ classifiers = [
 dependencies = ["requests", "ldap3", "APScheduler", "flask", "sqlalchemy"]
 
 [project.scripts]
-adoverseas = "adoverseas:main"
+ADOverseas = "ADOverseas:main"
 
 [project.urls]
 Homepage = "https://github.com/woodleighschool/ADOverseas"
@@ -36,4 +36,4 @@ Repository = "https://github.com/woodleighschool/ADOverseas"
 Issues = "https://github.com/woodleighschool/ADOverseas/issues"
 
 [tool.setuptools]
-py-modules = ["adoverseas"]
+py-modules = ["ADOverseas"]
