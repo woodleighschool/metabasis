@@ -31,13 +31,10 @@ if not isinstance(numeric_level, int):
 logging.basicConfig(level=numeric_level, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Database():
-	def __init__(self):
-		self.init_db()
-		
 	def init_db():
 		logging.debug("Initializing backup schedules database")
-		with sqlite3.connect('/config/schedules.sqlite') as db:
-			db.execute("""
+		with sqlite3.connect('/config/schedules.sqlite') as database:
+			database.execute("""
 				CREATE TABLE IF NOT EXISTS schedules (
 					id INTEGER PRIMARY KEY,
 					username TEXT NOT NULL,
@@ -81,7 +78,6 @@ class ActiveDirectoryIntegration():
 		self.AD_USERNAME = os.getenv('AD_USERNAME', '')
 		self.AD_PASSWORD = os.getenv('AD_PASSWORD', '')
 		self.DOMAIN_BASE = 'DC=woodleighschool,DC=net'
-		self.database = Database()
 
 
 	def connect_to_ad(self):
@@ -146,7 +142,7 @@ class ActiveDirectoryIntegration():
 		conn.unbind()
 		if db_row != None:
 			logging.debug(f"Deleting backup record in schedules.sqlite")
-			self.database.delete_record(db_row)
+			Database.delete_record(db_row)
 
 
 	def format_username(email):
@@ -157,7 +153,7 @@ class ActiveDirectoryIntegration():
 def reschedule_jobs():
 	logging.debug("Checking for previously uncompleted jobs")
 	logging.debug("Getting all records from schedules.sqlite")
-	rows = database.get_records()
+	rows = Database.get_records()
 
 	if rows != None:
 		for row in rows:
@@ -184,13 +180,13 @@ def schedule(username, start_date, end_date):
 		scheduler.add_job(adIntegration.edit_ad_user, id=f"{username}_away_{start_date}", args=[username, 'away', None], replace_existing=True)
 	else:
 		logging.debug(f"Adding data for job {username}_away to schedules database in case of system shutdown")
-		row_id = database.add_record(username, start_date, "leaving")
+		row_id = Database.add_record(username, start_date, "leaving")
 		logging.debug(f"Scheduling job {username}_away")
 		scheduler.add_job(adIntegration.edit_ad_user, id=f"{username}_away_{start_date}", trigger='date', run_date=start_date, timezone=timezone.utc, args=[
 			username, 'away', row_id], replace_existing=True)
 
 	logging.debug(f"Adding data for job {username}_home to schedules database in case of system shutdown")
-	row_id = database.add_record(username, end_date, "returning")
+	row_id = Database.add_record(username, end_date, "returning")
 	logging.debug(f"Scheduling job {username}_home")
 	scheduler.add_job(adIntegration.edit_ad_user, id=f"{username}_home_{end_date}", trigger='date', run_date=end_date, timezone=timezone.utc, args=[
 		username, 'home', row_id], replace_existing=True)
@@ -250,8 +246,6 @@ def healthCheck():
 	return jsonify({'status': 'Success!'}), 200
 
 def main():
-	global database
-	database = Database()
 	global adIntegration
 	adIntegration = ActiveDirectoryIntegration()
 	reschedule_jobs()
