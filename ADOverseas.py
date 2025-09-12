@@ -246,6 +246,7 @@ def healthCheck():
 	return jsonify({'status': 'Success!'}), 200
 
 def main():
+	Database.init_db()
 	global adIntegration
 	adIntegration = ActiveDirectoryIntegration()
 	reschedule_jobs()
