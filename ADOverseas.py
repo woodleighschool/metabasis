@@ -257,7 +257,7 @@ class ADOverseas():
 		return jsonify({'status': 'Success!'}), 200
 
 def main():
-	app.run()
+	app.run(host="0.0.0.0", port=80)
 
 if __name__ == "__main__":
 	main()
