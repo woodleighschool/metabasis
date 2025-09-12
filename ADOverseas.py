@@ -154,109 +154,107 @@ class ActiveDirectoryIntegration():
 		return username
 
 
-class ADOverseas():
-	def __init__(self):
-		self.database = Database()
-		self.adIntegration = ActiveDirectoryIntegration()
-		self.reschedule_jobs()
+def reschedule_jobs():
+	logging.debug("Checking for previously uncompleted jobs")
+	logging.debug("Getting all records from schedules.sqlite")
+	rows = database.get_records()
 
+	if rows != None:
+		for row in rows:
+			rowID, username, date, action = row
+			if action == "leaving":
+				if datetime.strptime(date+"+0000", "%Y-%m-%dT%H:%M:%S.000Z%z") > datetime.now(timezone.utc):
+					logging.debug(f"Scheduling leaving job for {username} at {date}")
+					scheduler.add_job(adIntegration.edit_ad_user, id=f"{username}_away", trigger='date', run_date=date, args=[
+						username, 'away', rowID], replace_existing=True)
+				else:
+					logging.debug(f"Job for {username} is in the past, running now instead")
+					scheduler.add_job(adIntegration.edit_ad_user, id=f"{username}_away", args=[username, 'away', rowID], replace_existing=True)
+			elif action == "returning":
+				if datetime.strptime(date+"+0000", "%Y-%m-%dT%H:%M:%S.000Z%z") > datetime.now(timezone.utc):
+					logging.debug(f"Scheduling leaving job for {username} at {date}")
+					scheduler.add_job(adIntegration.edit_ad_user, id=f"{username}_home", trigger='date', run_date=date, args=[
+						username, 'home', rowID], replace_existing=True)
+	else:
+		logging.debug("No previously uncompleted jobs")
 
-	def reschedule_jobs(self):
-		logging.debug("Checking for previously uncompleted jobs")
-		logging.debug("Getting all records from schedules.sqlite")
-		rows = self.database.get_records()
+def schedule(username, start_date, end_date):
+	if start_date <= datetime.now(timezone.utc):
+		logging.debug(f"Start date is in the past, adding {username} to group now instead")
+		scheduler.add_job(adIntegration.edit_ad_user, id=f"{username}_away_{start_date}", args=[username, 'away', None], replace_existing=True)
+	else:
+		logging.debug(f"Adding data for job {username}_away to schedules database in case of system shutdown")
+		row_id = database.add_record(username, start_date, "leaving")
+		logging.debug(f"Scheduling job {username}_away")
+		scheduler.add_job(adIntegration.edit_ad_user, id=f"{username}_away_{start_date}", trigger='date', run_date=start_date, timezone=timezone.utc, args=[
+			username, 'away', row_id], replace_existing=True)
 
-		if rows != None:
-			for row in rows:
-				rowID, username, date, action = row
-				if action == "leaving":
-					if datetime.strptime(date+"+0000", "%Y-%m-%dT%H:%M:%S.000Z%z") > datetime.now(timezone.utc):
-						logging.debug(f"Scheduling leaving job for {username} at {date}")
-						scheduler.add_job(self.adIntegration.edit_ad_user, id=f"{username}_away", trigger='date', run_date=date, args=[
-							username, 'away', rowID], replace_existing=True)
-					else:
-						logging.debug(f"Job for {username} is in the past, running now instead")
-						scheduler.add_job(self.adIntegration.edit_ad_user, id=f"{username}_away", args=[username, 'away', rowID], replace_existing=True)
-				elif action == "returning":
-					if datetime.strptime(date+"+0000", "%Y-%m-%dT%H:%M:%S.000Z%z") > datetime.now(timezone.utc):
-						logging.debug(f"Scheduling leaving job for {username} at {date}")
-						scheduler.add_job(self.adIntegration.edit_ad_user, id=f"{username}_home", trigger='date', run_date=date, args=[
-							username, 'home', rowID], replace_existing=True)
-		else:
-			logging.debug("No previously uncompleted jobs")
-
-	def schedule(self, username, start_date, end_date):
-		if start_date <= datetime.now(timezone.utc):
-			logging.debug(f"Start date is in the past, adding {username} to group now instead")
-			scheduler.add_job(self.adIntegration.edit_ad_user, id=f"{username}_away_{start_date}", args=[username, 'away', None], replace_existing=True)
-		else:
-			logging.debug(f"Adding data for job {username}_away to schedules database in case of system shutdown")
-			row_id = self.database.add_record(username, start_date, "leaving")
-			logging.debug(f"Scheduling job {username}_away")
-			scheduler.add_job(self.adIntegration.edit_ad_user, id=f"{username}_away_{start_date}", trigger='date', run_date=start_date, timezone=timezone.utc, args=[
-				username, 'away', row_id], replace_existing=True)
-
-		logging.debug(f"Adding data for job {username}_home to schedules database in case of system shutdown")
-		row_id = self.database.add_record(username, end_date, "returning")
-		logging.debug(f"Scheduling job {username}_home")
-		scheduler.add_job(self.adIntegration.edit_ad_user, id=f"{username}_home_{end_date}", trigger='date', run_date=end_date, timezone=timezone.utc, args=[
-			username, 'home', row_id], replace_existing=True)
+	logging.debug(f"Adding data for job {username}_home to schedules database in case of system shutdown")
+	row_id = database.add_record(username, end_date, "returning")
+	logging.debug(f"Scheduling job {username}_home")
+	scheduler.add_job(adIntegration.edit_ad_user, id=f"{username}_home_{end_date}", trigger='date', run_date=end_date, timezone=timezone.utc, args=[
+		username, 'home', row_id], replace_existing=True)
 
 
 
-	@app.route('/schedule', methods=['POST'])
-	def schedule_user(self):
-		api_token = os.getenv('API_TOKEN') # should error out if no token is found
-		
-		api_key = request.headers.get('Authorization')
+@app.route('/schedule', methods=['POST'])
+def schedule_user():
+	api_token = os.getenv('API_TOKEN') # should error out if no token is found
+	
+	api_key = request.headers.get('Authorization')
 
-		# continue if api_key is correct
-		logging.debug("Checking if authorized")
-		if api_key == f'Bearer {api_token}':
-			logging.debug("Getting request as JSON")
-			data = request.get_json()
+	# continue if api_key is correct
+	logging.debug("Checking if authorized")
+	if api_key == f'Bearer {api_token}':
+		logging.debug("Getting request as JSON")
+		data = request.get_json()
 
-			logging.debug("Parsing JSON fields")
-			email = data.get('username')
-			logging.debug(f"Formatting email {email} into samAccountName")
-			username = ActiveDirectoryIntegration.format_username(email)
-			start_date_str = data.get('start_date')
-			end_date_str = data.get('end_date')
+		logging.debug("Parsing JSON fields")
+		email = data.get('username')
+		logging.debug(f"Formatting email {email} into samAccountName")
+		username = ActiveDirectoryIntegration.format_username(email)
+		start_date_str = data.get('start_date')
+		end_date_str = data.get('end_date')
 
-			# ensure all required fields are sent
-			logging.debug("Checking if all fields have been met")
-			if not (username and start_date_str and end_date_str):
-				logging.error(f"Missing a parameter: {request.data}")
-				return jsonify({'status': 'request failed', 'reason': 'Missing Parameter'}), 400
+		# ensure all required fields are sent
+		logging.debug("Checking if all fields have been met")
+		if not (username and start_date_str and end_date_str):
+			logging.error(f"Missing a parameter: {request.data}")
+			return jsonify({'status': 'request failed', 'reason': 'Missing Parameter'}), 400
 
-			logging.debug("Attempting to parse dates to datetime object")
-			try:
-				start_date = datetime.strptime(start_date_str + "+0000", "%Y-%m-%dT%H:%M:%S.000Z%z")
-				end_date = datetime.strptime(end_date_str + "+0000", "%Y-%m-%dT%H:%M:%S.000Z%z")
-			except ValueError:  # handle incorrect datetime format
-				logging.error(f"Unable to parse dates {start_date_str} and {end_date_str}")
-				return jsonify({'status': 'request failed', 'reason': 'invalid date/time format'}), 400
+		logging.debug("Attempting to parse dates to datetime object")
+		try:
+			start_date = datetime.strptime(start_date_str + "+0000", "%Y-%m-%dT%H:%M:%S.000Z%z")
+			end_date = datetime.strptime(end_date_str + "+0000", "%Y-%m-%dT%H:%M:%S.000Z%z")
+		except ValueError:  # handle incorrect datetime format
+			logging.error(f"Unable to parse dates {start_date_str} and {end_date_str}")
+			return jsonify({'status': 'request failed', 'reason': 'invalid date/time format'}), 400
 
-			# make sure that end_date is after start_date
-			logging.debug("Checking if end_date is before start_date")
-			if end_date <= start_date:
-				logging.error(f"end_date {end_date} is before start_date {start_date}")
-				return jsonify({'status': 'request failed', 'reason': 'end_date cannot be before or same as start_date!'}), 400
+		# make sure that end_date is after start_date
+		logging.debug("Checking if end_date is before start_date")
+		if end_date <= start_date:
+			logging.error(f"end_date {end_date} is before start_date {start_date}")
+			return jsonify({'status': 'request failed', 'reason': 'end_date cannot be before or same as start_date!'}), 400
 
-			# add to schedule
-			logging.debug("Adding job to scheduler")
-			self.schedule(username, start_date, end_date)
-			return jsonify({'status': 'request succesful'})
-		logging.error("API Token does not match")
-		return jsonify({'status': 'request failed', 'reason': 'unauthorized'}), 401
+		# add to schedule
+		logging.debug("Adding job to scheduler")
+		schedule(username, start_date, end_date)
+		return jsonify({'status': 'request succesful'})
+	logging.error("API Token does not match")
+	return jsonify({'status': 'request failed', 'reason': 'unauthorized'}), 401
 
 
 
-	@app.route('/health', methods=['GET'])
-	def healthCheck():
-		return jsonify({'status': 'Success!'}), 200
+@app.route('/health', methods=['GET'])
+def healthCheck():
+	return jsonify({'status': 'Success!'}), 200
 
 def main():
+	global database
+	database = Database()
+	global adIntegration
+	adIntegration = ActiveDirectoryIntegration()
+	reschedule_jobs()
 	app.run(host="0.0.0.0", port=80)
 
 if __name__ == "__main__":
