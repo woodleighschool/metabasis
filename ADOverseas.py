@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
-from ldap3 import Server, Connection, ALL
+import ldap3
 import os
 import logging
 import sqlite3
@@ -85,8 +85,8 @@ class ActiveDirectoryIntegration():
 
 	def connect_to_ad(self):
 		logging.debug("Connecting to AD...")
-		server = Server(self.AD_SERVER, get_info=ALL, use_ssl=True)
-		conn = Connection(server, user=self.AD_USERNAME,
+		server = ldap3.Server(self.AD_SERVER, get_info=ldap3.ALL, use_ssl=True)
+		conn = ldap3.Connection(server, user=self.AD_USERNAME,
 						password=self.AD_PASSWORD, auto_bind=True)
 		logging.debug("Connected.")
 		return conn
@@ -119,8 +119,13 @@ class ActiveDirectoryIntegration():
 			for group in self.HOME_GROUPS:
 				group_name = ActiveDirectoryIntegration.getGroupName(group)
 				logging.debug(f"Removing {user_identifier} from {group_name}")
-				# remove user from group that disables overseas access
-				conn.extend.microsoft.remove_members_from_groups(user_dn, group)
+				try:
+					# remove user from group that disables overseas access
+					conn.extend.microsoft.remove_members_from_groups(user_dn, group)
+				except ldap3.core.exceptions.LDAPInvalidDNError:
+					print(f"{user_identifier} is not in {group_name}, moving on")
+					continue
+
 		
 		elif action == "home":
 			for group in self.HOME_GROUPS:
@@ -135,8 +140,12 @@ class ActiveDirectoryIntegration():
 					logging.debug(f"{user_identifier} is Staff so not removing from MFA group: {group_name}")
 					continue
 				logging.debug(f"Removing {user_identifier} to {group_name}")
-				# Remove user from overseas access groups and MFA group if appropriate
-				conn.extend.microsoft.remove_members_to_groups(user_dn, group)		
+				try:
+					# Remove user from overseas access groups and MFA group if appropriate
+					conn.extend.microsoft.remove_members_to_groups(user_dn, group)
+				except ldap3.core.exceptions.LDAPInvalidDNError:
+					print(f"{user_identifier} is not in {group_name}, moving on")
+					continue
 
 		conn.unbind()
 		if db_row != None:
