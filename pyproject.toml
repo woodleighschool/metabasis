@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "adoverseas"
-version = "1.1.5"
+version = "1.2.0"
 description = "Adds users to appropriate groups when webhook is received"
 readme = "README.md"
 requires-python = ">=3.8"
