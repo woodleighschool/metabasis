@@ -132,7 +132,7 @@ class ActiveDirectoryIntegration():
 				group_name = ActiveDirectoryIntegration.getGroupName(group)
 				logging.debug(f"Adding {user_identifier} from {group_name}")
 				# Add user back to normal groups
-				conn.extend.microsoft.add_members_from_groups(user_dn, group)
+				conn.extend.microsoft.add_members_to_groups(user_dn, group)
 
 			for group in self.AWAY_GROUPS:
 				group_name = ActiveDirectoryIntegration.getGroupName(group)
@@ -142,7 +142,7 @@ class ActiveDirectoryIntegration():
 				logging.debug(f"Removing {user_identifier} to {group_name}")
 				try:
 					# Remove user from overseas access groups and MFA group if appropriate
-					conn.extend.microsoft.remove_members_to_groups(user_dn, group)
+					conn.extend.microsoft.remove_members_from_groups(user_dn, group)
 				except ldap3.core.exceptions.LDAPInvalidDNError:
 					print(f"{user_identifier} is not in {group_name}, moving on")
 					continue
