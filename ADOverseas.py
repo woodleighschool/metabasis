@@ -103,7 +103,6 @@ class ActiveDirectoryIntegration():
 
 		if not conn.entries:
 			logging.error(f"User {user_identifier} not found")
-			print(f"Username '{user_identifier}' not found.")
 			return
 
 		user_dn = conn.entries[0].entry_dn
@@ -113,8 +112,13 @@ class ActiveDirectoryIntegration():
 			for group in self.AWAY_GROUPS:
 				group_name = ActiveDirectoryIntegration.getGroupName(group)
 				logging.debug(f"Adding {user_identifier} to {group_name}")
-				# add user to overseas access group
-				conn.extend.microsoft.add_members_to_groups(user_dn, group)
+				try:
+					# add user to overseas access group
+					conn.extend.microsoft.add_members_to_groups(user_dn, group)
+				except ldap3.core.exceptions.LDAPInvalidDnError as e:
+					logging.error(f"Error adding {user_identifier} to {group_name}")
+					logging.error(f"Error: {e}")
+					continue
 			
 			for group in self.HOME_GROUPS:
 				group_name = ActiveDirectoryIntegration.getGroupName(group)
@@ -123,7 +127,7 @@ class ActiveDirectoryIntegration():
 					# remove user from group that disables overseas access
 					conn.extend.microsoft.remove_members_from_groups(user_dn, group)
 				except ldap3.core.exceptions.LDAPInvalidDnError:
-					print(f"{user_identifier} is not in {group_name}, moving on")
+					logging.warning(f"{user_identifier} is not in {group_name}, moving on")
 					continue
 
 		
@@ -131,9 +135,14 @@ class ActiveDirectoryIntegration():
 			for group in self.HOME_GROUPS:
 				group_name = ActiveDirectoryIntegration.getGroupName(group)
 				logging.debug(f"Adding {user_identifier} from {group_name}")
-				# Add user back to normal groups
-				conn.extend.microsoft.add_members_to_groups(user_dn, group)
-
+				try:
+					# Add user to normal groups
+					conn.extend.microsoft.add_members_to_groups(user_dn, group)
+				except ldap3.core.exceptions.LDAPInvalidDnError as e:
+					logging.error(f"Error adding {user_identifier} to {group_name}")
+					logging.error(f"Error: {e}")
+					continue
+				
 			for group in self.AWAY_GROUPS:
 				group_name = ActiveDirectoryIntegration.getGroupName(group)
 				if "MFA" in group_name and user_department == "Staff":
@@ -144,7 +153,7 @@ class ActiveDirectoryIntegration():
 					# Remove user from overseas access groups and MFA group if appropriate
 					conn.extend.microsoft.remove_members_from_groups(user_dn, group)
 				except ldap3.core.exceptions.LDAPInvalidDnError:
-					print(f"{user_identifier} is not in {group_name}, moving on")
+					logging.warning(f"{user_identifier} is not in {group_name}, moving on")
 					continue
 
 		conn.unbind()
