@@ -122,7 +122,7 @@ class ActiveDirectoryIntegration():
 				try:
 					# remove user from group that disables overseas access
 					conn.extend.microsoft.remove_members_from_groups(user_dn, group)
-				except ldap3.core.exceptions.LDAPInvalidDNError:
+				except ldap3.core.exceptions.LDAPInvalidDnError:
 					print(f"{user_identifier} is not in {group_name}, moving on")
 					continue
 
