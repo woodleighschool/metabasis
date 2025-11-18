@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
+from werkzeug import serving
 import ldap3
 import os
 import logging
@@ -30,6 +31,15 @@ numeric_level = getattr(logging, log_level, None)
 if not isinstance(numeric_level, int):
 	raise ValueError(f'Invalid log level: {log_level}')
 logging.basicConfig(level=numeric_level, format='%(asctime)s - %(levelname)s - %(message)s')
+
+parent_log_request = serving.WSGIRequestHandler.log_request
+def log_request(self, *args, **kwargs):
+	if self.path == "/health":
+		return
+	
+	parent_log_request(self, *args, **kwargs)
+
+serving.WSGIRequestHandler.log_request = log_request
 
 class Database():
 	def init_db():
