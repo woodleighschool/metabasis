@@ -4,16 +4,14 @@ import { createTheme } from "@mui/material/styles";
 const getPalette = (mode: PaletteMode): PaletteOptions => {
   const common = {
     primary: {
-      main: "#d047fd",
-      light: "#fd71ff",
-      dark: "#8a00c7",
-      contrastText: "#fff9ff",
+      main: '#385c3e',
+      light: '#67a874',
+      dark: '#4a7d52'
     },
     secondary: {
-      main: "#75fd47",
-      light: "#b6ff8a",
-      dark: "#3ca524",
-      contrastText: "#060409",
+      main: '#92c393',
+      light: '#1b5f2f',
+      dark: '#92c393'
     },
     error: { main: "#fd4775" },
     warning: { main: "#fdd047" },
