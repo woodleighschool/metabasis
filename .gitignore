@@ -1,52 +1,51 @@
-# Windows image file caches
-Thumbs.db
-ehthumbs.db
+# Go binaries
+*.exe
+*.exe~
+*.dll
+*.dylib
 
-# Folder config file
-Desktop.ini
+# Test binary, built with `go test -c`
+*.test
 
-# Recycle Bin used on file shares
-$RECYCLE.BIN/
+# Output of the go coverage tool
+*.out
 
-# Windows Installer files
-*.cab
-*.msi
-*.msm
-*.msp
+# Dependency directories
+vendor/
 
-# Windows shortcuts
-*.lnk
+# Go workspace files
+go.work
+go.work.sum
+.gocache
 
-# =========================
-# Operating System Files
-# =========================
+# Go module cache
+bin/
+pkg/
 
-# OSX
-# =========================
+# Build artifacts
+dist/
+build/
+tmp/
+public/
+dev/
+/jcdssync
+.env
+*.tsbuildinfo
+node_modules
+vite.config.d.ts
+vite.config.js
+.gitignore
 
+# macOS
 .DS_Store
 .AppleDouble
 .LSOverride
-
-# Thumbnails
 ._*
-
-# Files that might appear on external disk
 .Spotlight-V100
 .Trashes
-
-# Directories potentially created on remote AFP share
 .AppleDB
 .AppleDesktop
 Network Trash Folder
 Temporary Items
 .apdisk
 
-snippies/__pycache__
-__pycache__
-*.sqlite
-.vscode
-config.ini
-
-# For local testing
-testing

@@ -1,26 +1,54 @@
-# syntax=docker/dockerfile:1
+# Build the frontend
+FROM node:25-alpine AS frontend
+WORKDIR /workspace/frontend
+COPY frontend/package*.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+COPY frontend .
+ENV NODE_ENV=production
+RUN npm run build
 
-FROM docker.io/library/python:3.12-alpine3.22
+# Build the grinch binary
+FROM golang:1.25 AS backend
+ARG TARGETOS
+ARG TARGETARCH
+ARG LDFLAGS
 
-ENV DB_PATH="/config/schedules.db"
+WORKDIR /workspace
+# Copy the Go Modules manifests
+COPY backend/go.mod go.mod
+COPY backend/go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
 
-USER root
+# Copy the go source and sqlc config
+COPY backend/cmd/ cmd/
+COPY backend/internal/ internal/
+COPY backend/sqlc.yaml sqlc.yaml
 
-COPY requirements.txt pyproject.toml ADOverseas.py /app/
-WORKDIR /app
+# Build
+# the GOARCH has not a default value to allow the binary be built according to the host where the command
+# was called. For example, if we call make docker-build in a local env which has the Apple Silicon M1 SO
+# the docker BUILDPLATFORM arg will be linux/arm64 when for Apple x86 it will be linux/amd64. Therefore,
+# by leaving it empty we can ensure that the container and binary shipped on it will have the same platform.
+RUN go generate ./...
+RUN --mount=type=cache,target=/root/.cache/go-build \
+	CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
+	go build -trimpath -buildvcs=true \
+		-ldflags="${LDFLAGS} -w -s" \
+		-o adoverseas cmd/server/main.go
 
-RUN \
-    apk add --no-cache \
-        sqlite \
-    && \
-	pip3 install --no-cache-dir -r \
-		requirements.txt \
-	&& \
-	pip3 install --no-cache-dir \
-		. \
-	&& \
-	rm -rf /tmp/*
+# Use distroless as minimal base image to package the grinch binary
+# Refer to https://github.com/GoogleContainerTools/distroless for more details
+FROM gcr.io/distroless/static:nonroot
+WORKDIR /
+COPY --from=backend /workspace/adoverseas .
+COPY --from=frontend /workspace/frontend/dist ./frontend
 
-USER nobody:nogroup
+USER 65532:65532
+EXPOSE 8080
 
-CMD ["ADOverseas"]
+ENV FRONTEND_DIST_DIR=/frontend
+
+ENTRYPOINT ["/adoverseas"]

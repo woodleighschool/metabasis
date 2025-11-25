@@ -1,0 +1,74 @@
+package schedule
+
+import (
+	"encoding/json"
+	"log/slog"
+	"net/http"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/woodleighschool/adoverseas/internal/config"
+	"github.com/woodleighschool/adoverseas/internal/http/utils"
+	"github.com/woodleighschool/adoverseas/internal/store"
+	"github.com/woodleighschool/adoverseas/internal/store/sqlc"
+)
+
+type scheduleBody struct {
+	Email         string `json:"email"`
+	LeavingDate   string `json:"leaving_date"`
+	ReturningDate string `json:"returning_date"`
+	UpdatedBy     string `json:"updatedBy"`
+}
+
+type Handler struct {
+	Store  *store.Store
+	Logger *slog.Logger
+	Config config.Config
+}
+
+func RegisterRoutes(r chi.Router, cfg config.Config, store *store.Store, logger *slog.Logger) {
+	h := Handler{Store: store, Logger: logger, Config: cfg}
+	r.Route("/", func(r chi.Router) {
+		r.Post("/", h.insertSchedule)
+	})
+
+}
+
+func (h Handler) insertSchedule(w http.ResponseWriter, r *http.Request) {
+	var body scheduleBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	user, err := h.Store.GetUserByUPN(r.Context(), body.Email)
+	if err != nil {
+		h.Logger.Error("retrieve user from api body", "err", err)
+		utils.RespondError(w, http.StatusBadRequest, "failed to retrieve user from body")
+		return
+	}
+	leavingDate, err := time.Parse(time.RFC3339Nano, body.LeavingDate)
+	if err != nil {
+		h.Logger.Error("parsing leaving date", "err", err)
+		utils.RespondError(w, http.StatusBadRequest, "unable to parse leaving date")
+		return
+	}
+	returningDate, err := time.Parse(time.RFC3339Nano, body.ReturningDate)
+	if err != nil {
+		h.Logger.Error("parsing returning date", "err", err)
+		utils.RespondError(w, http.StatusBadRequest, "unable to parse returning date")
+		return
+	}
+	_, err = h.Store.InsertSchedule(r.Context(), sqlc.InsertScheduleParams{
+		Userid:        user.ID,
+		LeavingDate:   pgtype.Timestamptz{Time: leavingDate, Valid: true},
+		ReturningDate: pgtype.Timestamptz{Time: returningDate, Valid: true},
+	})
+	h.Logger.Info("new schedule added", "user", user.Upn, "leaving_date", leavingDate, "returning_date", returningDate)
+	utils.RespondJSON(w, http.StatusAccepted, map[string]any{
+		"status":         "success",
+		"user":           user.Upn,
+		"leaving_date":   leavingDate,
+		"returning_date": returningDate,
+	})
+}
