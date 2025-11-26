@@ -17,6 +17,10 @@ func NewTaskJob(store *store.Store, adClient activedirectory.Client, cfg config.
 		if store == nil {
 			return fmt.Errorf("db missing")
 		}
+		err := adClient.Client.Reconnect(ctx, 0, 0)
+		if err != nil {
+			return fmt.Errorf("reconnect ad: %w", err)
+		}
 		currentTasks, err := store.ListScheduleSummaries(ctx)
 		if err != nil {
 			return fmt.Errorf("list tasks: %w", err)

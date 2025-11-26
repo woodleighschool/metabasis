@@ -19,7 +19,7 @@ import (
 
 const (
 	stateCookieTTL  = 10 * time.Minute
-	defaultRedirect = "/admin"
+	defaultRedirect = "/dashboard"
 )
 
 type Handler struct {

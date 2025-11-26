@@ -33,7 +33,7 @@ export function Footer({ versionLabel, onOpenCredits }: FooterProps) {
             >
               <IconButton
                 component="a"
-                href="https://github.com/woodleighschool/grinch"
+                href="https://github.com/woodleighschool/adoverseas"
                 target="_blank"
                 rel="noopener noreferrer"
                 size="small"
