@@ -21,6 +21,7 @@ type Config struct {
 	MinConnections       int32         `env:"DB_MIN_CONNECTIONS" envDefault:"2"`
 	StaffDepartment      []string      `env:"STAFF_DEPARTMENT,required"`
 	ADHost               string        `env:"AD_HOST,required"`
+	ADBase               string        `env:"AD_BASE,required"`
 	ADAdminDN            string        `env:"AD_ADMIN_DN,required"`
 	ADAdminPassword      string        `env:"AD_ADMIN_PASSWORD,required"`
 	AwayGroups           []string      `env:"AWAY_GROUPS,required"`

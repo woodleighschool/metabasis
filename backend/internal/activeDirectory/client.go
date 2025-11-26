@@ -21,6 +21,7 @@ func NewClient(cfg config.Config) (Client, error) {
 			DN:       cfg.ADAdminDN,
 			Password: cfg.ADAdminPassword,
 		},
+		SearchBase: cfg.ADBase,
 	}
 
 	cl := adc.New(adcCfg)
