@@ -52,8 +52,8 @@ func (q *Queries) GetSchdeule(ctx context.Context, id uuid.UUID) (Schedule, erro
 }
 
 const insertSchedule = `-- name: InsertSchedule :one
-INSERT INTO schedules (userID, leaving_date, returning_date) 
-VALUES ($1, $2, $3) 
+INSERT INTO schedules (userID, leaving_date, returning_date, last_changed_by) 
+VALUES ($1, $2, $3, $4) 
 RETURNING id, userid, leaving_date, returning_date, overseas, last_changed_by, last_changed
 `
 
@@ -61,10 +61,16 @@ type InsertScheduleParams struct {
 	Userid        uuid.UUID          `json:"userid"`
 	LeavingDate   pgtype.Timestamptz `json:"leaving_date"`
 	ReturningDate pgtype.Timestamptz `json:"returning_date"`
+	LastChangedBy string             `json:"last_changed_by"`
 }
 
 func (q *Queries) InsertSchedule(ctx context.Context, arg InsertScheduleParams) (Schedule, error) {
-	row := q.db.QueryRow(ctx, insertSchedule, arg.Userid, arg.LeavingDate, arg.ReturningDate)
+	row := q.db.QueryRow(ctx, insertSchedule,
+		arg.Userid,
+		arg.LeavingDate,
+		arg.ReturningDate,
+		arg.LastChangedBy,
+	)
 	var i Schedule
 	err := row.Scan(
 		&i.ID,

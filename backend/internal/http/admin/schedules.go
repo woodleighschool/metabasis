@@ -16,17 +16,17 @@ import (
 )
 
 type scheduleBody struct {
-	Email         string `json:"email"`
+	UPN           string `json:"upn"`
 	LeavingDate   string `json:"leaving_date"`
 	ReturningDate string `json:"returning_date"`
-	UpdatedBy     string `json:"updated_by"`
+	LastUpdatedBy string `json:"last_updated_by"`
 }
 
 type updateScheduleRequest struct {
-	Email         string  `json:"email"`
+	UPN           string  `json:"upn"`
 	LeavingDate   *string `json:"leaving_date,omitempty"`
 	ReturningDate *string `json:"returning_date,omitempty"`
-	UpdatedBy     string  `json:"updated_by,omitempty"`
+	LastUpdatedBy string  `json:"last_updated_by,omitempty"`
 }
 
 type scheduleSummaryResponse struct {
@@ -81,7 +81,7 @@ func (h Handler) insertSchedules(w http.ResponseWriter, r *http.Request) {
 		utils.RespondError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	user, err := h.Store.GetUserByUPN(r.Context(), body.Email)
+	user, err := h.Store.GetUserByUPN(r.Context(), body.UPN)
 	if err != nil {
 		h.Logger.Error("retrieve user from api body", "err", err)
 		utils.RespondError(w, http.StatusBadRequest, "failed to retrieve user from body")
@@ -103,8 +103,11 @@ func (h Handler) insertSchedules(w http.ResponseWriter, r *http.Request) {
 		Userid:        user.ID,
 		LeavingDate:   pgtype.Timestamptz{Time: leavingDate, Valid: true},
 		ReturningDate: pgtype.Timestamptz{Time: returningDate, Valid: true},
+		LastChangedBy: body.LastUpdatedBy,
 	})
-
+	utils.RespondJSON(w, http.StatusAccepted, map[string]any{
+		"message": "successfully added schedule",
+	})
 }
 
 func (h Handler) getSchedule(w http.ResponseWriter, r *http.Request) {
@@ -175,13 +178,13 @@ func (h Handler) updateSchedule(w http.ResponseWriter, r *http.Request) {
 		}
 		payload.ReturningDate = pgtype.Timestamptz{Time: returningDate, Valid: true}
 	}
-	payload.LastChangedBy = body.UpdatedBy
+	payload.LastChangedBy = body.LastUpdatedBy
 	if err := h.Store.UpdateSchedule(r.Context(), payload); err != nil {
 		h.Logger.Error("update schedule", "err", err)
 		utils.RespondError(w, http.StatusInternalServerError, "failed to update schedule")
 		return
 	}
-	h.Logger.Info("successfully updated schedule", "user", body.Email, "leaving_date", payload.LeavingDate, "returning_date", payload.ReturningDate)
+	h.Logger.Info("successfully updated schedule", "user", body.UPN, "leaving_date", payload.LeavingDate, "returning_date", payload.ReturningDate)
 	utils.RespondJSON(w, http.StatusOK, map[string]any{
 		"message": "successfully updated schedule",
 	})

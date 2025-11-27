@@ -1,6 +1,6 @@
 -- name: InsertSchedule :one
-INSERT INTO schedules (userID, leaving_date, returning_date) 
-VALUES ($1, $2, $3) 
+INSERT INTO schedules (userID, leaving_date, returning_date, last_changed_by) 
+VALUES ($1, $2, $3, $4) 
 RETURNING *;
 
 -- name: FlipSchedule :exec
