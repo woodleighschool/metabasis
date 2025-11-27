@@ -25,7 +25,7 @@ export function CreditsDialog({ open, onClose }: CreditsDialogProps) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Grinch icons created by Freepik - Flaticon
+            🙂
           </Link>
         </Typography>
       </DialogContent>

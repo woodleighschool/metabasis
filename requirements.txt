@@ -1,5 +1,0 @@
-requests
-ldap3
-APScheduler
-flask
-sqlalchemy

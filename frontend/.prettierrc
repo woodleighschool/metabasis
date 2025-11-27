@@ -3,5 +3,15 @@
   "trailingComma": "all",
   "singleQuote": false,
   "printWidth": 160,
-  "useTabs": true
+  "tabWidth": 2,
+  "useTabs": false,
+  "arrowParens": "always",
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+  "proseWrap": "always",
+  "quoteProps": "consistent",
+  "htmlWhitespaceSensitivity": "css",
+  "embeddedLanguageFormatting": "auto",
+  "endOfLine": "lf",
+  "singleAttributePerLine": true
 }
