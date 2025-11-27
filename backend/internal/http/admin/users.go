@@ -20,8 +20,9 @@ type userResponse struct {
 }
 
 func (h Handler) userRoutes(r chi.Router) {
+	r.Get("/", h.getUsers)
 	r.Route("/{id}", func(r chi.Router) {
-		r.Get("/", h.getSchedule)
+		r.Get("/", h.getUser)
 	})
 }
 
@@ -44,6 +45,20 @@ func (h Handler) getUser(w http.ResponseWriter, r *http.Request) {
 	}
 	userResponse := mapUser(user)
 	utils.RespondJSON(w, http.StatusOK, userResponse)
+}
+
+func (h Handler) getUsers(w http.ResponseWriter, r *http.Request) {
+	users, err := h.Store.GetUsers(r.Context())
+	if err != nil {
+		h.Logger.Error("get users", "err", err)
+		utils.RespondError(w, http.StatusInternalServerError, "failed to get users")
+		return
+	}
+	resp := make([]userResponse, 0, len(users))
+	for _, u := range users {
+		resp = append(resp, mapUser(u))
+	}
+	utils.RespondJSON(w, http.StatusOK, resp)
 }
 
 func mapUser(u sqlc.User) userResponse {

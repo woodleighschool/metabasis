@@ -70,6 +70,36 @@ func (q *Queries) GetUserByUPN(ctx context.Context, upn string) (User, error) {
 	return i, err
 }
 
+const getUsers = `-- name: GetUsers :many
+SELECT id, upn, display_name, staff
+FROM users
+`
+
+func (q *Queries) GetUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.Query(ctx, getUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Upn,
+			&i.DisplayName,
+			&i.Staff,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertUser = `-- name: UpsertUser :one
 INSERT INTO users (id, upn, display_name, staff)
 VALUES ($1, $2, $3, $4)

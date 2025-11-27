@@ -41,7 +41,7 @@ export class ApiValidationError extends Error {
   }
 }
 
-export interface ScheduleSummaryRecord {
+export interface Schedule {
 	id: string;
 	user: string;
 	display_name: string;
@@ -53,14 +53,21 @@ export interface ScheduleSummaryRecord {
 	last_updated: string;
 }
 
-export interface UpdateScheduleRecord {
-	email: string;
+export interface CreateSchedulePayload {
+	upn: string,
 	leaving_date: string;
 	returning_date: string;
-	updated_by: string;
+	last_updated_by: string;
 }
 
-export interface UserRecord {
+export interface UpdateScheduleRecord {
+	upn: string;
+	leaving_date: string;
+	returning_date: string;
+	last_updated_by: string;
+}
+
+export interface User {
 	id: string;
 	upn: string;
 	displayName: string;
@@ -151,8 +158,16 @@ export async function getAuthProviders(): Promise<AuthProviders> {
 
 // Schedules
 
-export async function listScheduleSummaries(): Promise<ScheduleSummaryRecord[]> {
-	return apiRequest<ScheduleSummaryRecord[]>(`/schedules`)
+export async function listScheduleSummaries(): Promise<Schedule[]> {
+	return apiRequest<Schedule[]>(`/schedules`)
+}
+
+export async function createSchedule(payload: CreateSchedulePayload): Promise<void> {
+	return apiRequest<void>(`/schedules`, {
+		method: "POST",
+		headers: { "Content-Type": "applications/json"},
+		body: JSON.stringify(payload),
+	});
 }
 
 export async function updateSchedule(scheduleID: string, payload: UpdateScheduleRecord): Promise<void> {
@@ -172,6 +187,10 @@ export async function deleteSchedule(scheduleId: string): Promise<void> {
 	if (!res.ok && res.status !== 404) {
 		throw new Error("Failed to delete schedule");
 	}
+}
+
+export async function listUsers(): Promise<User[]> {
+	return apiRequest<User[]>(`/users`)
 }
 
 

@@ -7,6 +7,10 @@ DO UPDATE SET
 	display_name = EXCLUDED.display_name
 RETURNING *;
 
+-- name: GetUsers :many
+SELECT id, upn, display_name, staff
+FROM users;
+
 -- name: GetUser :one
 SELECT id, upn, display_name, staff
 FROM users

@@ -1,15 +1,22 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { 
-	listScheduleSummaries, 
+	createSchedule,
+	listScheduleSummaries,
+	listUsers, 
 	getCurrentUser, 
 	getStatus, 
+	updateSchedule,
 	type ApiUser, 
-	type ScheduleSummaryRecord, 
-	type AppStatusResponse
+	type User,
+	type Schedule, 
+	type AppStatusResponse,
+	deleteSchedule,
+	type UpdateScheduleRecord
 } from "../api"
 
 export const queryKeys = {
 	user: (id: string) => ["users", id] as const,
+	users: ["users"] as const,
 	currentUser: ["currentUser"] as const,
 	schedules: ["schedules"] as const,
 	status: ["status"] as const
@@ -32,7 +39,7 @@ export function useStatus() {
 }
 
 export function useCurrentScheduleSummary() {
-	const query = useQuery<ScheduleSummaryRecord[]>({
+	const query = useQuery<Schedule[]>({
 		queryKey: queryKeys.schedules,
 		queryFn: () => listScheduleSummaries(),
 		select: (results) => (Array.isArray(results) ? results : []),
@@ -40,6 +47,54 @@ export function useCurrentScheduleSummary() {
 
 	return {
 		schedules: query.data ?? [],
+		loading: query.isLoading,
+		error: query.error ? (query.error instanceof Error ? query.error.message : String(query.error)) : null,
+		refetch: query.refetch,
+	};
+}
+
+export function useCreateSchedule() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: createSchedule,
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["schedules"] });
+		}
+	});
+}
+
+export function useUpdateSchedule() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({scheduleId, payload}: {scheduleId: string; payload: UpdateScheduleRecord }) => updateSchedule(scheduleId, payload),
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["schedules"] });
+		}
+	})
+}
+
+export function useDeleteSchedule() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: deleteSchedule,
+		onSuccess: () => {
+			void queryClient.invalidateQueries({ queryKey: ["schedules"] });
+		}
+	});
+}
+
+export function useUsers() {
+	const query = useQuery<User[]>({
+		queryKey: queryKeys.users,
+		queryFn: () => listUsers(),
+		select: (results) => (Array.isArray(results) ? results : []),
+	});
+
+	return {
+		users: query.data ?? [],
 		loading: query.isLoading,
 		error: query.error ? (query.error instanceof Error ? query.error.message : String(query.error)) : null,
 		refetch: query.refetch,

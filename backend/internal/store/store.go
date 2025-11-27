@@ -8,6 +8,10 @@ import (
 	"github.com/woodleighschool/adoverseas/internal/store/sqlc"
 )
 
+func (s *Store) GetUsers(ctx context.Context) ([]sqlc.User, error) {
+	return s.queries.GetUsers(ctx)
+}
+
 func (s *Store) GetUser(ctx context.Context, id uuid.UUID) (sqlc.User, error) {
 	return s.queries.GetUser(ctx, id)
 }
