@@ -1,10 +1,12 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useConfirm } from "material-ui-confirm";
-import { Button, Card, CardContent, Paper, Chip, Typography, Stack, TextField, Switch } from "@mui/material";
+import { Box, Button, Card, CardContent, Paper, Chip, Typography, Stack, TextField, Switch } from "@mui/material";
 import { DataGrid, GridActionsCellItem, type GridActionsCellItemProps, type GridColDef, type GridRenderCellParams, type GridRowParams } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import HomeFilledIcon from "@mui/icons-material/HomeFilled";
+import PublicIcon from "@mui/icons-material/Public";
 
 import { type Schedule } from "../api";
 import { EmptyState, PageHeader } from "../components";
@@ -54,32 +56,12 @@ function createScheduleColumns({ onEdit, onRequestDelete, deletingScheduleId }: 
 		},
 		{
 			field: "overseas",
+			type: "boolean",
 			headerName: "Currently Overseas",
 			align: "center",
 			flex: 1,
 			sortable: true,
 			filterable: true,
-			renderCell: (params) => {
-				const state = params.value;
-				let color: "error" | "success";
-				var label: string;
-
-				if (state == true) {
-					color = "success";
-					label = "YES";
-				} else {
-					color = "error";
-					label = "NO";
-				}
-
-				return (
-					<Switch
-						disabled
-						size="medium"
-						color={color}
-					/>
-				);
-			},
 		},
 		{
 			field: "last_updated_by",

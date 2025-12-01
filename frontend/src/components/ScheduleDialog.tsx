@@ -167,13 +167,12 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 					onSubmit={(e) => void handleSubmit(onSubmit)(e)}
 				>
 					<Stack
-						direction={{ xs: "row", md: "row" }}
-						alignContent={"stretch"}
+						direction={{ xs: "column", md: "row" }}
 						spacing={3}
 					>
 						<Stack
 							spacing={2.5}
-							direction={{ xs: "column", md: "column" }}
+							flex={{ xs: "auto" }}
 						>
 							<Controller
 								name="display_name"
@@ -227,8 +226,8 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 							{/* <Chip {...register("overseas")} label={chipLabel} color={chipColor} size="small" variant="filled" /> */}
 						</Stack>
 						<Stack
-							spacing={2.5}
-							direction={{ xs: "column", md: "column" }}
+							spacing={3}
+							flex={{ xs: "auto" }}
 						>
 							<Controller
 								name="leaving_date"
