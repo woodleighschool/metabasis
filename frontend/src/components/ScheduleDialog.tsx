@@ -1,6 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { Autocomplete, Button, Dialog, DialogActions, DialogTitle, DialogContent, LinearProgress, TextField, Stack, CircularProgress } from "@mui/material";
+import { matchSorter } from "match-sorter";
+import {
+	Autocomplete,
+	Button,
+	Chip,
+	Dialog,
+	DialogActions,
+	DialogTitle,
+	DialogContent,
+	LinearProgress,
+	TextField,
+	Stack,
+	CircularProgress,
+} from "@mui/material";
 import { DateTimePicker } from "@mui/x-date-pickers";
 import { ApiValidationError, type Schedule, type User } from "../api";
 import { useCurrentUser, useCreateSchedule, useUpdateSchedule, useUsers } from "../hooks/useQueries";
@@ -18,8 +31,8 @@ type ScheduleDialogMode = "create" | "edit";
 const defaultValues: ScheduleFormValues = {
 	upn: "",
 	display_name: "",
-	leaving_date: dayjs("2025-01-01T00:00:00.000Z"),
-	returning_date: dayjs("2025-12-12T00:00:00.000Z"),
+	leaving_date: dayjs().endOf("day"),
+	returning_date: dayjs().endOf("day").add(14, "day"),
 	overseas: false,
 };
 
@@ -46,6 +59,14 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 	const { data: user, error } = useCurrentUser();
 	const createSchedule = useCreateSchedule();
 	const updateSchedule = useUpdateSchedule();
+
+	const userFilterOptions = (users: User[], { inputValue }: { [key: string]: any }) =>
+		matchSorter(users, inputValue, {
+			keys: [
+				{ threshold: matchSorter.rankings.CONTAINS, key: "upn" },
+				{ threshold: matchSorter.rankings.CONTAINS, key: "displayName" },
+			],
+		});
 
 	const form = useForm<ScheduleFormValues>({
 		defaultValues,
@@ -146,12 +167,13 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 					onSubmit={(e) => void handleSubmit(onSubmit)(e)}
 				>
 					<Stack
-						direction={{ xs: "column", md: "row" }}
+						direction={{ xs: "row", md: "row" }}
+						alignContent={"stretch"}
 						spacing={3}
 					>
 						<Stack
 							spacing={2.5}
-							flex={{ xs: "auto" }}
+							direction={{ xs: "column", md: "column" }}
 						>
 							<Controller
 								name="display_name"
@@ -159,6 +181,7 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 								render={({ field: { onChange, value } }) => (
 									<Autocomplete
 										options={users}
+										filterOptions={userFilterOptions}
 										disabled={mode === "edit"}
 										getOptionLabel={(option) => option.displayName}
 										getOptionKey={(option) => option.upn}
@@ -204,8 +227,8 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 							{/* <Chip {...register("overseas")} label={chipLabel} color={chipColor} size="small" variant="filled" /> */}
 						</Stack>
 						<Stack
-							spacing={3}
-							flex={{ xs: "auto" }}
+							spacing={2.5}
+							direction={{ xs: "column", md: "column" }}
 						>
 							<Controller
 								name="leaving_date"

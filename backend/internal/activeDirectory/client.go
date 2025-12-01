@@ -2,6 +2,7 @@ package activedirectory
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/dlampsi/adc"
 	"github.com/woodleighschool/adoverseas/internal/config"
@@ -31,4 +32,8 @@ func NewClient(cfg config.Config) (Client, error) {
 	} else {
 		return Client{Client: cl, AwayGroups: cfg.AwayGroups, HomeGroups: cfg.HomeGroups, MFAGroup: cfg.MFAGroup}, nil
 	}
+}
+
+func SplitUPN(upn string) string {
+	return strings.Split(upn, "@")[0]
 }

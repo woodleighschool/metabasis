@@ -42,6 +42,7 @@ func NewTaskJob(store *store.Store, adClient activedirectory.Client, cfg config.
 				if err := store.DeleteSchedule(ctx, task.ID); err != nil {
 					return fmt.Errorf("failed to remove leftover task: %w", err)
 				}
+				continue
 			} else if !task.Overseas && task.LeavingDate.Time.Before(currentTime) {
 				user, err := store.GetUser(ctx, task.Userid)
 				if err != nil {
@@ -53,6 +54,7 @@ func NewTaskJob(store *store.Store, adClient activedirectory.Client, cfg config.
 				if err := store.FlipSchedule(ctx, task.ID); err != nil {
 					return fmt.Errorf("failed to update overseas flag on task: %w", err)
 				}
+				continue
 			}
 		}
 		logger.Debug("All tasks actioned successfully")
@@ -61,22 +63,23 @@ func NewTaskJob(store *store.Store, adClient activedirectory.Client, cfg config.
 }
 
 func UserLeaving(user sqlc.User, adClient activedirectory.Client) error {
+	samAccountName := activedirectory.SplitUPN(user.Upn)
 	for _, group := range adClient.AwayGroups {
-		_, err := adClient.Client.AddGroupMembers(group, user.Upn)
+		_, err := adClient.Client.AddGroupMembers(group, samAccountName)
 		if err != nil {
 			return fmt.Errorf("unable to add user to group: %w", err)
 		}
 	}
 
 	if adClient.MFAGroup != "" && !user.Staff.Bool {
-		_, err := adClient.Client.AddGroupMembers(adClient.MFAGroup, user.Upn)
+		_, err := adClient.Client.AddGroupMembers(adClient.MFAGroup, samAccountName)
 		if err != nil {
 			return fmt.Errorf("unable to add user to mfa group: %w", err)
 		}
 	}
 
 	for _, group := range adClient.HomeGroups {
-		_, err := adClient.Client.DeleteGroupMembers(group, user.Upn)
+		_, err := adClient.Client.DeleteGroupMembers(group, samAccountName)
 		if err != nil {
 			return fmt.Errorf("unable to remove user from group: %w", err)
 		}
@@ -85,24 +88,25 @@ func UserLeaving(user sqlc.User, adClient activedirectory.Client) error {
 }
 
 func UserReturning(user sqlc.User, adClient activedirectory.Client) error {
+	samAccountName := activedirectory.SplitUPN(user.Upn)
 	for _, group := range adClient.HomeGroups {
-		_, err := adClient.Client.AddGroupMembers(group, user.Upn)
+		_, err := adClient.Client.AddGroupMembers(group, samAccountName)
 		if err != nil {
 			return fmt.Errorf("unable to add user to group: %w", err)
 		}
 	}
 
 	for _, group := range adClient.AwayGroups {
-		_, err := adClient.Client.DeleteGroupMembers(group, user.Upn)
+		_, err := adClient.Client.DeleteGroupMembers(group, samAccountName)
 		if err != nil {
 			return fmt.Errorf("unable to remove user from group: %w", err)
 		}
 	}
 
 	if adClient.MFAGroup != "" && !user.Staff.Bool {
-		_, err := adClient.Client.DeleteGroupMembers(adClient.MFAGroup, user.Upn)
+		_, err := adClient.Client.DeleteGroupMembers(adClient.MFAGroup, samAccountName)
 		if err != nil {
-			return fmt.Errorf("unable to remove user froom mfa group: %w", err)
+			return fmt.Errorf("unable to remove user from mfa group: %w", err)
 		}
 	}
 	return nil

@@ -24,8 +24,8 @@ const getPalette = (mode: PaletteMode): PaletteOptions => {
 			...common,
 			mode,
 			background: {
-				default: "#050109",
-				paper: "#0d0716",
+				default: "#262626ff",
+				paper: "#2b2b2bff",
 			},
 			text: {
 				primary: "#fdf7ff",

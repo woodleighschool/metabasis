@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useConfirm } from "material-ui-confirm";
-import { Button, Card, CardContent, Paper, Chip, Typography, Stack, TextField } from "@mui/material";
+import { Button, Card, CardContent, Paper, Chip, Typography, Stack, TextField, Switch } from "@mui/material";
 import { DataGrid, GridActionsCellItem, type GridActionsCellItemProps, type GridColDef, type GridRenderCellParams, type GridRowParams } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
@@ -55,6 +55,7 @@ function createScheduleColumns({ onEdit, onRequestDelete, deletingScheduleId }: 
 		{
 			field: "overseas",
 			headerName: "Currently Overseas",
+			align: "center",
 			flex: 1,
 			sortable: true,
 			filterable: true,
@@ -72,11 +73,10 @@ function createScheduleColumns({ onEdit, onRequestDelete, deletingScheduleId }: 
 				}
 
 				return (
-					<Chip
-						size="small"
+					<Switch
+						disabled
+						size="medium"
 						color={color}
-						variant="filled"
-						label={label}
 					/>
 				);
 			},

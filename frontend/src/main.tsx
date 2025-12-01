@@ -7,6 +7,7 @@ import { ConfirmProvider } from "material-ui-confirm";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { Dayjs } from "dayjs";
+import 'dayjs/locale/en-au';
 import type { PaletteMode } from "@mui/material";
 
 import App from "./App";
@@ -34,7 +35,7 @@ export function Root() {
 	return (
 		<ThemeProvider theme={theme}>
 			<CssBaseline />
-			<LocalizationProvider dateAdapter={AdapterDayjs}>
+			<LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="en-au">
 				<ConfirmProvider>
 					<BrowserRouter>
 						<App />
