@@ -1,13 +1,14 @@
 package admin
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-
 	"github.com/woodleighschool/adoverseas/internal/http/utils"
 	"github.com/woodleighschool/adoverseas/internal/store/sqlc"
 )
@@ -23,6 +24,7 @@ func (h Handler) userRoutes(r chi.Router) {
 	r.Get("/", h.getUsers)
 	r.Route("/{id}", func(r chi.Router) {
 		r.Get("/", h.getUser)
+		r.Get("/photo", h.getUserAsset)
 	})
 }
 
@@ -68,4 +70,32 @@ func mapUser(u sqlc.User) userResponse {
 		DisplayName: u.DisplayName,
 		Staff:       u.Staff.Bool,
 	}
+}
+
+func (h Handler) getUserAsset(w http.ResponseWriter, r *http.Request) {
+	id, err := parseUUIDParam(r, "id")
+	if err != nil {
+		utils.RespondError(w, http.StatusBadRequest, "invalid user id")
+		return
+	}
+	ctx := r.Context()
+	asset, err := h.Store.GetUserAsset(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			utils.RespondError(w, http.StatusNotFound, "user asset not found")
+			return
+		}
+		h.Logger.Error("get user asset", "err", err)
+		utils.RespondError(w, http.StatusInternalServerError, "failed to get user asset")
+		return
+	}
+
+	modTime := time.Now()
+	if asset.UpdatedAt.Valid {
+		modTime = asset.UpdatedAt.Time
+	}
+
+	w.Header().Set("Content-Type", asset.ContentType)
+	w.Header().Set("Cache-Control", "public, max-age=300, stale-while-revalidate=300")
+	http.ServeContent(w, r, id.String(), modTime, bytes.NewReader(asset.Data))
 }

@@ -1,10 +1,9 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { matchSorter } from "match-sorter";
 import {
 	Autocomplete,
 	Button,
-	Chip,
 	Dialog,
 	DialogActions,
 	DialogTitle,
@@ -13,10 +12,11 @@ import {
 	TextField,
 	Stack,
 	CircularProgress,
+	type FilterOptionsState,
 } from "@mui/material";
 import { DateTimePicker } from "@mui/x-date-pickers";
-import { ApiValidationError, type Schedule, type User } from "../api";
-import { useCurrentUser, useCreateSchedule, useUpdateSchedule, useUsers } from "../hooks/useQueries";
+import { type Schedule, type User } from "../api";
+import { useCurrentUser, useCreateSchedule, useUpdateSchedule } from "../hooks/useQueries";
 import dayjs, { Dayjs } from "dayjs";
 
 export type ScheduleFormValues = {
@@ -47,8 +47,8 @@ interface ScheduleDialogProps {
 }
 
 export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, onSuccess, onError }: ScheduleDialogProps) {
-	var leaving_date: Dayjs;
-	var returning_date: Dayjs;
+	let leaving_date: Dayjs = dayjs();
+	let returning_date: Dayjs = dayjs();
 	if (mode === "edit" && schedule) {
 		leaving_date = dayjs(schedule.leaving_date);
 		returning_date = dayjs(schedule.returning_date);
@@ -56,12 +56,12 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 		leaving_date = dayjs();
 		returning_date = dayjs().add(31, "day");
 	}
-	const { data: user, error } = useCurrentUser();
+	const { data: user } = useCurrentUser();
 	const createSchedule = useCreateSchedule();
 	const updateSchedule = useUpdateSchedule();
 
-	const userFilterOptions = (users: User[], { inputValue }: { [key: string]: any }) =>
-		matchSorter(users, inputValue, {
+	const userFilterOptions = (users: User[], state: FilterOptionsState<User>) =>
+		matchSorter(users, state.inputValue, {
 			keys: [
 				{ threshold: matchSorter.rankings.CONTAINS, key: "upn" },
 				{ threshold: matchSorter.rankings.CONTAINS, key: "displayName" },
@@ -72,13 +72,10 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 		defaultValues,
 	});
 	const {
-		register,
 		control,
 		handleSubmit,
-		watch,
 		reset,
 		setValue,
-		setError,
 		clearErrors,
 		formState: { isSubmitting, errors },
 	} = form;
@@ -104,12 +101,9 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 	const submitLabel = mode === "edit" ? "Save Changes" : "Create";
 	const submittingLabel = mode === "edit" ? "Saving..." : "Creating...";
 
-	const chipLabel = schedule?.overseas ? "YES" : "NO";
-	const chipColor = schedule?.overseas ? "success" : "error";
-
 	const buildPayload = (values: ScheduleFormValues) => {
 		const now = dayjs();
-		var overseas: boolean;
+		let overseas: boolean = false;
 		if (now.isAfter(values.leaving_date) && now.isBefore(values.returning_date)) {
 			overseas = true;
 		} else {
@@ -223,7 +217,6 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 									/>
 								)}
 							/>
-							{/* <Chip {...register("overseas")} label={chipLabel} color={chipColor} size="small" variant="filled" /> */}
 						</Stack>
 						<Stack
 							spacing={3}
@@ -235,7 +228,6 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 								render={({ field }) => (
 									<DateTimePicker
 										label="Leaving Date"
-										disablePast
 										{...field}
 									/>
 								)}

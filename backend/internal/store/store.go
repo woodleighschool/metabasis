@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-
 	"github.com/woodleighschool/adoverseas/internal/store/sqlc"
 )
 
@@ -18,6 +17,14 @@ func (s *Store) GetUser(ctx context.Context, id uuid.UUID) (sqlc.User, error) {
 
 func (s *Store) GetUserByUPN(ctx context.Context, upn string) (sqlc.User, error) {
 	return s.queries.GetUserByUPN(ctx, upn)
+}
+
+func (s *Store) GetUserAsset(ctx context.Context, id uuid.UUID) (sqlc.UserAsset, error) {
+	return s.queries.GetUserAsset(ctx, id)
+}
+
+func (s *Store) UpsertUserAsset(ctx context.Context, asset sqlc.UpsertUserAssetParams) (sqlc.UserAsset, error) {
+	return s.queries.UpsertUserAsset(ctx, asset)
 }
 
 func (s *Store) DeleteUser(ctx context.Context, id uuid.UUID) error {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, Suspense, lazy, useCallback, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { useCurrentUser, useStatus } from "./hooks/useQueries";
+import { decode } from "./utils/base64";
 
 import { Box, Container, LinearProgress } from "@mui/material";
 
@@ -71,6 +72,7 @@ export default function App() {
 	}, []);
 
 	const userDisplay = user?.display_name ?? "Administrator";
+	const userID = user?.user_id ?? "0"
 	const userInitial = (userDisplay[0] ?? "A").toUpperCase();
 	const versionLabel = status?.version.version;
 
@@ -98,10 +100,12 @@ export default function App() {
 				activeTab={activeTab}
 				userDisplay={userDisplay}
 				userInitial={userInitial}
+				userID={userID}
 				onLogout={handleLogout}
 			/>
 			<Container
 				component="main"
+				disableGutters
 				maxWidth="xl"
 				sx={{
 					flexGrow: 1,

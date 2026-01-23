@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	msgraphmodels "github.com/microsoftgraph/msgraph-sdk-go/models"
 	msgraphusers "github.com/microsoftgraph/msgraph-sdk-go/users"
 )
 
@@ -12,6 +13,7 @@ type DirectoryUser struct {
 	UPN         string
 	DisplayName string
 	Department  string
+	Photo       []byte
 	Active      bool
 }
 
@@ -25,7 +27,15 @@ func (c *Client) FetchUsers(ctx context.Context) ([]DirectoryUser, error) {
 	builder := c.graph.Users()
 	adapter := c.graph.GetAdapter()
 	top := int32(100)
-	selectFields := []string{"id", "userPrincipalName", "onPremisesSamAccountName", "displayName", "department", "accountEnabled"}
+	selectFields := []string{
+		"id",
+		"userPrincipalName",
+		"onPremisesSamAccountName",
+		"displayName",
+		"department",
+		"accountEnabled",
+		"photo",
+	}
 	var users []DirectoryUser
 	for {
 		resp, err := builder.Get(ctx, &msgraphusers.UsersRequestBuilderGetRequestConfiguration{
@@ -45,11 +55,14 @@ func (c *Client) FetchUsers(ctx context.Context) ([]DirectoryUser, error) {
 			if enabled := user.GetAccountEnabled(); enabled != nil {
 				active = *enabled
 			}
+			photo := c.fetchUserPhoto(ctx, user)
+
 			users = append(users, DirectoryUser{
 				ObjectID:    deref(user.GetId()),
 				UPN:         deref(user.GetUserPrincipalName()),
 				DisplayName: deref(user.GetDisplayName()),
 				Department:  deref(user.GetDepartment()),
+				Photo:       photo,
 				Active:      active,
 			})
 		}
@@ -60,4 +73,17 @@ func (c *Client) FetchUsers(ctx context.Context) ([]DirectoryUser, error) {
 		builder = msgraphusers.NewUsersRequestBuilder(*next, adapter)
 	}
 	return users, nil
+}
+
+func (c *Client) fetchUserPhoto(ctx context.Context, user msgraphmodels.Userable) []byte {
+	adapter := c.graph.GetAdapter()
+	builder := msgraphusers.NewItemPhotosItemValueContentRequestBuilder(fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/photos/96x96/$value", deref(user.GetId())), adapter)
+
+	photoData, err := builder.Get(ctx, &msgraphusers.ItemPhotosItemValueContentRequestBuilderGetRequestConfiguration{})
+
+	if err != nil || photoData == nil {
+		return nil
+	} else {
+		return photoData
+	}
 }

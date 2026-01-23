@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-
 	"github.com/woodleighschool/adoverseas/internal/auth"
 	"github.com/woodleighschool/adoverseas/internal/config"
 	"github.com/woodleighschool/adoverseas/internal/http/admin"

@@ -10,6 +10,7 @@ import (
 type Config struct {
 	ListenAddr           string        `env:"LISTEN_ADDR" envDefault:":8080"`
 	ApiKey               string        `env:"API_KEY,required"`
+	TimeLocation         string        `env:"TIME_LOCATION" envDefault:"Australia/Melbourne"`
 	DatabaseHost         string        `env:"DATABASE_HOST,required"`
 	DatabasePort         string        `env:"DATABASE_PORT" envDefault:"5432"`
 	DatabaseName         string        `env:"DATABASE_NAME,required"`
@@ -52,4 +53,12 @@ func Load() (Config, error) {
 func (c Config) DatabaseURL() string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		c.DatabaseUser, c.DatabasePassword, c.DatabaseHost, c.DatabasePort, c.DatabaseName, c.DatabaseSSLMode)
+}
+
+func (c Config) Location() (*time.Location, error) {
+	location, err := time.LoadLocation(c.TimeLocation)
+	if err != nil {
+		return &time.Location{}, fmt.Errorf("unable to determine tz from TIME_LOCATION: %w", err)
+	}
+	return location, nil
 }

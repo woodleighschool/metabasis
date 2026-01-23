@@ -11,11 +11,10 @@ import (
 	"time"
 
 	activedirectory "github.com/woodleighschool/adoverseas/internal/activeDirectory"
-	"github.com/woodleighschool/adoverseas/internal/graph"
-	httpapi "github.com/woodleighschool/adoverseas/internal/http"
-
 	"github.com/woodleighschool/adoverseas/internal/auth"
 	"github.com/woodleighschool/adoverseas/internal/config"
+	"github.com/woodleighschool/adoverseas/internal/graph"
+	httpapi "github.com/woodleighschool/adoverseas/internal/http"
 	"github.com/woodleighschool/adoverseas/internal/schedules"
 	"github.com/woodleighschool/adoverseas/internal/store"
 )
@@ -64,13 +63,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	oidcProvider, err := auth.NewOIDCProvider(ctx, cfg.AdminIssuer, cfg.AdminClientID, cfg.AdminClientSecret, cfg.SiteBaseURL)
+	oidcProvider, err := auth.NewOIDCProvider(
+		ctx,
+		cfg.AdminIssuer,
+		cfg.AdminClientID,
+		cfg.AdminClientSecret,
+		cfg.SiteBaseURL,
+	)
 	if err != nil {
 		logger.Error("oidc provider", "err", err)
 		os.Exit(1)
 	}
 
-	sessions, err := auth.NewSessionManager(cfg.SessionCookieName, cfg.SessionSecret, strings.HasPrefix(cfg.SiteBaseURL, "https"))
+	sessions, err := auth.NewSessionManager(
+		cfg.SessionCookieName,
+		cfg.SessionSecret,
+		strings.HasPrefix(cfg.SiteBaseURL, "https"),
+	)
 	if err != nil {
 		logger.Error("session manager", "err", err)
 		os.Exit(1)
@@ -82,7 +91,7 @@ func main() {
 		logger.Warn("graph client", "err", err)
 	}
 	if graphClient != nil && graphClient.Enabled() {
-		if err := scheduler.Add("@every 10m", "entra-users", schedules.NewUserJob(db, graphClient, logger, cfg)); err != nil {
+		if err := scheduler.Add("@every 5m", "entra-users", schedules.NewUserJob(db, graphClient, logger, cfg)); err != nil {
 			logger.Warn("schedule users", "err", err)
 		}
 	}
@@ -109,15 +118,7 @@ func main() {
 	}
 	router := httpapi.NewRouter(cfg, deps)
 
-	server := &http.Server{
-		Addr:         cfg.ListenAddr,
-		Handler:      router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 30 * time.Second,
-		IdleTimeout:  60 * time.Second,
-	}
-
-	errCh := startServer(cfg, logger, server)
+	server, errCh := startServer(cfg, logger, router, cfg.ListenAddr)
 
 	select {
 	case <-ctx.Done():
@@ -155,7 +156,15 @@ func newLogger(level string) *slog.Logger {
 	return slog.New(handler)
 }
 
-func startServer(cfg config.Config, logger *slog.Logger, server *http.Server) <-chan error {
+func startServer(cfg config.Config, logger *slog.Logger, router http.Handler, listenAddress string) (*http.Server, <-chan error) {
+	server := &http.Server{
+		Addr:         cfg.ListenAddr,
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
 	errCh := make(chan error, 1)
 	go func() {
 		defer close(errCh)
@@ -166,5 +175,6 @@ func startServer(cfg config.Config, logger *slog.Logger, server *http.Server) <-
 		}
 		errCh <- nil
 	}()
-	return errCh
+
+	return server, errCh
 }

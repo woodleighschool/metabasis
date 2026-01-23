@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-
 	"github.com/woodleighschool/adoverseas/internal/http/utils"
 	"github.com/woodleighschool/adoverseas/internal/store/sqlc"
 )
@@ -87,13 +86,13 @@ func (h Handler) insertSchedules(w http.ResponseWriter, r *http.Request) {
 		utils.RespondError(w, http.StatusBadRequest, "failed to retrieve user from body")
 		return
 	}
-	leavingDate, err := time.Parse(time.RFC3339Nano, body.LeavingDate)
+	leavingDate, err := time.ParseInLocation(time.RFC3339Nano, body.LeavingDate, h.TZ)
 	if err != nil {
 		h.Logger.Error("parsing leaving date", "err", err)
 		utils.RespondError(w, http.StatusBadRequest, "unable to parse leaving date")
 		return
 	}
-	returningDate, err := time.Parse(time.RFC3339Nano, body.ReturningDate)
+	returningDate, err := time.ParseInLocation(time.RFC3339Nano, body.ReturningDate, h.TZ)
 	if err != nil {
 		h.Logger.Error("parsing returning date", "err", err)
 		utils.RespondError(w, http.StatusBadRequest, "unable to parse returning date")
@@ -160,7 +159,7 @@ func (h Handler) updateSchedule(w http.ResponseWriter, r *http.Request) {
 		LastChangedBy: current.LastChangedBy,
 	}
 	if body.LeavingDate != nil {
-		leavingDate, err := time.Parse(time.RFC3339Nano, *body.LeavingDate)
+		leavingDate, err := time.ParseInLocation(time.RFC3339Nano, *body.LeavingDate, h.TZ)
 		if err != nil {
 			utils.RespondError(w, http.StatusBadRequest, "unable to parse leaving_date")
 			return
@@ -171,7 +170,7 @@ func (h Handler) updateSchedule(w http.ResponseWriter, r *http.Request) {
 		payload.LeavingDate = pgtype.Timestamptz{Time: leavingDate, Valid: true}
 	}
 	if body.ReturningDate != nil {
-		returningDate, err := time.Parse(time.RFC3339Nano, *body.ReturningDate)
+		returningDate, err := time.ParseInLocation(time.RFC3339Nano, *body.ReturningDate, h.TZ)
 		if err != nil {
 			utils.RespondError(w, http.StatusBadRequest, "unable to parse returning_date")
 			return
@@ -184,7 +183,15 @@ func (h Handler) updateSchedule(w http.ResponseWriter, r *http.Request) {
 		utils.RespondError(w, http.StatusInternalServerError, "failed to update schedule")
 		return
 	}
-	h.Logger.Info("successfully updated schedule", "user", body.UPN, "leaving_date", payload.LeavingDate, "returning_date", payload.ReturningDate)
+	h.Logger.Info(
+		"successfully updated schedule",
+		"user",
+		body.UPN,
+		"leaving_date",
+		payload.LeavingDate,
+		"returning_date",
+		payload.ReturningDate,
+	)
 	utils.RespondJSON(w, http.StatusOK, map[string]any{
 		"message": "successfully updated schedule",
 	})

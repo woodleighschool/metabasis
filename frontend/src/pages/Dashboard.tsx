@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useConfirm } from "material-ui-confirm";
-import { Box, Button, Card, CardContent, Paper, Chip, Typography, Stack, TextField, Switch } from "@mui/material";
-import { DataGrid, GridActionsCellItem, type GridActionsCellItemProps, type GridColDef, type GridRenderCellParams, type GridRowParams } from "@mui/x-data-grid";
+import { Avatar, Button, Chip, Divider, Paper, Stack, Typography } from "@mui/material";
+import { DataGrid, GridActionsCellItem, type GridColDef} from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -27,14 +27,25 @@ function createScheduleColumns({ onEdit, onRequestDelete, deletingScheduleId }: 
 		{
 			field: "display_name",
 			headerName: "User",
-			flex: 1,
+			flex: 1.2,
 			sortable: true,
 			filterable: true,
+			renderCell: (params) => (
+				<Stack direction="row" alignItems="center" justifyContent="left" spacing={2}>
+					<Avatar
+						alt={params.row.display_name[0] ?? "A"}
+						src={`/api/v1/users/${params.row.user}/photo`}
+					/>
+					<Typography>
+						{params.row.display_name}
+					</Typography>
+				</Stack>
+			)
 		},
 		{
 			field: "upn",
 			headerName: "Email",
-			flex: 1,
+			flex: 1.5,
 			sortable: true,
 			filterable: true,
 		},
@@ -58,10 +69,32 @@ function createScheduleColumns({ onEdit, onRequestDelete, deletingScheduleId }: 
 			field: "overseas",
 			type: "boolean",
 			headerName: "Currently Overseas",
-			align: "center",
 			flex: 1,
 			sortable: true,
 			filterable: true,
+			renderCell: (params) => {
+				if (params.row.overseas) {
+					return (
+						<Chip
+							label="Away"
+							color="success"
+							icon={<PublicIcon/>}
+							size="small"
+							variant="outlined"
+						/>
+					)
+				} else {
+					return (
+						<Chip
+							label="Home"
+							color="error"
+							icon={<HomeFilledIcon/>}
+							size="small"
+							variant="outlined"
+						/>
+					)
+				}
+			}
 		},
 		{
 			field: "last_updated_by",
@@ -108,7 +141,7 @@ function createScheduleColumns({ onEdit, onRequestDelete, deletingScheduleId }: 
 
 interface ScheduleColumnOptions {
 	onEdit: (schedule: Schedule) => void;
-	onRequestDelete: (scheduleId: string) => void;
+	onRequestDelete: (scheduleId: string) => Promise<void>;
 	deletingScheduleId: string | null;
 }
 
@@ -143,26 +176,18 @@ export default function State() {
 
 			try {
 				await deleteSchedule.mutateAsync(scheduleId);
-				showToast({
-					message: "Schedule successfully deleted.",
-					severity: "success",
-				});
 			} catch (error) {
 				console.error("Delete schedule failed", error);
-				showToast({
-					message: "Failed to delete schedule.",
-					severity: "error",
-				});
 			} finally {
 				setDeletingScheduleId(null);
 			}
 		},
-		[deleteSchedule, showToast],
+		[deleteSchedule],
 	);
-
+	
 	const handleConfirmDelete = useCallback(
 		async (scheduleId: string) => {
-			const { confirmed, reason } = await confirm({
+			const { confirmed } = await confirm({
 				title: "Delete Schedule",
 				description: "Are you sure you wish to delete this schedule, this operation cannot be undone.",
 				cancellationText: "Cancel",
@@ -172,10 +197,21 @@ export default function State() {
 			});
 
 			if (confirmed) {
-				handleDeleteSchedule(scheduleId);
+				try {
+					await handleDeleteSchedule(scheduleId)
+					showToast({
+						message: "Successfully deleted schedule",
+						severity: "info",
+					})
+				} catch {
+					showToast({
+						message: "Failed to delete schedule",
+						severity: "error",
+					})
+				}
 			}
 		},
-		[confirm, handleDeleteSchedule],
+		[confirm, handleDeleteSchedule, showToast],
 	);
 
 	useEffect(() => {
@@ -194,7 +230,7 @@ export default function State() {
 				severity: "error",
 			});
 		}
-	}, [error, showToast]);
+	}, [error, userError, showToast]);
 
 	const columns = useMemo(
 		() =>
@@ -249,8 +285,7 @@ export default function State() {
 					subtitle="All currently logged overseas schedules"
 					action={action}
 				/>
-
-				<Paper sx={{ height: 640, width: "100%" }}>
+				<Paper sx={{ height: "70vh", width: "100%" }}>
 					<DataGrid
 						rows={rows}
 						columns={columns}

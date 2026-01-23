@@ -15,16 +15,18 @@ import (
 
 	"github.com/woodleighschool/adoverseas/internal/auth"
 	"github.com/woodleighschool/adoverseas/internal/config"
+	"github.com/woodleighschool/adoverseas/internal/store"
 )
 
 const (
 	stateCookieTTL  = 10 * time.Minute
-	defaultRedirect = "/dashboard"
+	defaultRedirect = "/"
 )
 
 type Handler struct {
 	provider             *auth.OIDCProvider
 	sessions             *auth.SessionManager
+	store                *store.Store
 	logger               *slog.Logger
 	siteURL              string
 	stateCookie          string
@@ -36,6 +38,11 @@ type oidcState struct {
 	State    string `json:"state"`
 	Nonce    string `json:"nonce"`
 	Redirect string `json:"redirect"`
+}
+
+type activeUser struct {
+	DisplayName string `json:"display_name"`
+	Photo       []byte `json:"photo"`
 }
 
 func RegisterRoutes(r chi.Router, cfg config.Config, provider *auth.OIDCProvider, sessions *auth.SessionManager, logger *slog.Logger) {
@@ -177,8 +184,13 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 		displayName = name
 	}
 
+	userID := "none"
+	if id, ok := session.Claims["oid"].(string); ok && id != "" {
+		userID = id
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]string{"display_name": displayName}); err != nil {
+	if err := json.NewEncoder(w).Encode(map[string]any{"display_name": displayName, "user_id": userID}); err != nil {
 		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}

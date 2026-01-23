@@ -21,6 +21,7 @@ export interface ValidationSuccess<T> {
 
 export interface ApiUser {
 	display_name: string;
+	user_id: string;
 }
 
 export interface ApiErrorResponse {
@@ -158,7 +159,7 @@ export async function listScheduleSummaries(): Promise<Schedule[]> {
 }
 
 export async function createSchedule(payload: CreateSchedulePayload): Promise<void> {
-	return apiRequest<void>(`/schedules`, {
+	return apiRequest(`/schedules`, {
 		method: "POST",
 		headers: { "Content-Type": "applications/json" },
 		body: JSON.stringify(payload),
@@ -166,7 +167,7 @@ export async function createSchedule(payload: CreateSchedulePayload): Promise<vo
 }
 
 export async function updateSchedule(scheduleID: string, payload: UpdateScheduleRecord): Promise<void> {
-	return apiRequest<void>(`/schedules/${scheduleID}`, {
+	return apiRequest(`/schedules/${scheduleID}`, {
 		method: "PATCH",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(payload),

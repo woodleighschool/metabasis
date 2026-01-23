@@ -25,14 +25,22 @@ type Handler struct {
 	Store  *store.Store
 	Logger *slog.Logger
 	Config config.Config
+	TZ     *time.Location
 }
 
 func RegisterRoutes(r chi.Router, cfg config.Config, store *store.Store, logger *slog.Logger) {
 	h := Handler{Store: store, Logger: logger, Config: cfg}
+	tz, err := time.LoadLocation(cfg.TimeLocation)
+	if err != nil {
+		logger.Warn("Unable to determine timezone from TIME_LOCATION", "err", err)
+		h.TZ = time.UTC
+	} else {
+		h.TZ = tz
+	}
+
 	r.Route("/", func(r chi.Router) {
 		r.Post("/", h.insertSchedule)
 	})
-
 }
 
 func (h Handler) insertSchedule(w http.ResponseWriter, r *http.Request) {
@@ -47,13 +55,13 @@ func (h Handler) insertSchedule(w http.ResponseWriter, r *http.Request) {
 		utils.RespondError(w, http.StatusBadRequest, "failed to retrieve user from body")
 		return
 	}
-	leavingDate, err := time.Parse(time.RFC3339Nano, body.LeavingDate)
+	leavingDate, err := time.ParseInLocation(time.RFC3339Nano, body.LeavingDate, h.TZ)
 	if err != nil {
 		h.Logger.Error("parsing leaving date", "err", err)
 		utils.RespondError(w, http.StatusBadRequest, "unable to parse leaving date")
 		return
 	}
-	returningDate, err := time.Parse(time.RFC3339Nano, body.ReturningDate)
+	returningDate, err := time.ParseInLocation(time.RFC3339Nano, body.ReturningDate, h.TZ)
 	if err != nil {
 		h.Logger.Error("parsing returning date", "err", err)
 		utils.RespondError(w, http.StatusBadRequest, "unable to parse returning date")

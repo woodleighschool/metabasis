@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
 	createSchedule,
 	listScheduleSummaries,
@@ -16,6 +16,7 @@ import {
 
 export const queryKeys = {
 	user: (id: string) => ["users", id] as const,
+	userPhoto: (id: string) => ["users", id, "photo"] as const,
 	users: ["users"] as const,
 	currentUser: ["currentUser"] as const,
 	schedules: ["schedules"] as const,

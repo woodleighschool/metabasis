@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-
 	"github.com/woodleighschool/adoverseas/internal/config"
 	"github.com/woodleighschool/adoverseas/internal/graph"
 	"github.com/woodleighschool/adoverseas/internal/store"
@@ -66,6 +65,16 @@ func NewUserJob(store *store.Store, graphClient *graph.Client, logger *slog.Logg
 			}); err != nil {
 				logger.Error("upsert user", "upn", u.UPN, "err", err)
 			}
+
+			if u.Photo != nil {
+				if _, err := store.UpsertUserAsset(ctx, sqlc.UpsertUserAssetParams{
+					Userid:      userID,
+					ContentType: "image/jpeg",
+					Data:        u.Photo,
+				}); err != nil {
+					logger.Error("upsert user asset", "upn", u.UPN, "err", err)
+				}
+			}
 		}
 		return nil
 	}
@@ -89,7 +98,13 @@ func parseDirectoryUserID(objectID string) (uuid.UUID, bool) {
 	return id, true
 }
 
-func deleteDirectoryUser(ctx context.Context, store *store.Store, userID uuid.UUID, hasObjectID bool, upn string) error {
+func deleteDirectoryUser(
+	ctx context.Context,
+	store *store.Store,
+	userID uuid.UUID,
+	hasObjectID bool,
+	upn string,
+) error {
 	if hasObjectID {
 		return store.DeleteUser(ctx, userID)
 	}

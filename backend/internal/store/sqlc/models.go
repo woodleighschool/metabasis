@@ -25,3 +25,11 @@ type User struct {
 	DisplayName string      `json:"display_name"`
 	Staff       pgtype.Bool `json:"staff"`
 }
+
+type UserAsset struct {
+	Userid      uuid.UUID          `json:"userid"`
+	ContentType string             `json:"content_type"`
+	Data        []byte             `json:"data"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt   pgtype.Timestamptz `json:"updated_at"`
+}

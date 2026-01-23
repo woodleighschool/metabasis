@@ -1,59 +1,32 @@
-import { useState, type MouseEvent, type JSX } from "react";
 import { NavLink } from "react-router-dom";
 import {
 	AppBar,
 	Toolbar,
 	Typography,
-	Box,
 	Button,
 	Avatar,
 	Stack,
-	Tabs,
-	Tab,
 	Divider,
-	IconButton,
-	Menu,
-	MenuItem,
-	ListItemIcon,
-	ListItemText,
 	useMediaQuery,
 	useTheme,
 } from "@mui/material";
 
-import DashboardIcon from "@mui/icons-material/Dashboard";
 import LogoutIcon from "@mui/icons-material/Logout";
-import MenuIcon from "@mui/icons-material/Menu";
-
-interface NavItem {
-	label: string;
-	icon: JSX.Element;
-	to: string;
-}
-
-const navItems: NavItem[] = [{ label: "Dashboard", icon: <DashboardIcon fontSize="small" />, to: "/" }];
 
 export interface NavbarProps {
 	activeTab: string | false;
 	userDisplay: string;
 	userInitial: string;
+	userID: string;
 	onLogout: () => void | Promise<void>;
 }
 
-export function Navbar({ userDisplay, userInitial, onLogout }: NavbarProps) {
-	const [navMenuAnchor, setNavMenuAnchor] = useState<HTMLElement | null>(null);
+export function Navbar({ userDisplay, userInitial, userID, onLogout }: NavbarProps) {
 	const theme = useTheme();
 	const isDesktop = useMediaQuery(theme.breakpoints.up("md"));
-	const navMenuOpen = Boolean(navMenuAnchor);
-
-	const handleMenuOpen = (event: MouseEvent<HTMLButtonElement>) => {
-		setNavMenuAnchor(event.currentTarget);
-	};
-
-	const handleMenuClose = () => {
-		setNavMenuAnchor(null);
-	};
 
 	return (
+	<>
 		<AppBar
 			position="sticky"
 			enableColorOnDark
@@ -81,15 +54,15 @@ export function Navbar({ userDisplay, userInitial, onLogout }: NavbarProps) {
 						void onLogout();
 					}}
 					startIcon={
-						<Avatar
+						<Avatar 
 							sx={{
-								width: 28,
-								height: 28,
+								width: 20,
+								height: 20,
 								fontSize: 13,
 							}}
-						>
-							{userInitial}
-						</Avatar>
+							alt={userInitial} 
+							src={`/api/v1/users/${userID}/photo`}
+						/>
 					}
 					endIcon={<LogoutIcon fontSize="small" />}
 					aria-label={`Logout ${userDisplay}`}
@@ -111,5 +84,6 @@ export function Navbar({ userDisplay, userInitial, onLogout }: NavbarProps) {
 			</Toolbar>
 			<Divider />
 		</AppBar>
+	</>
 	);
 }
