@@ -6,20 +6,16 @@ import (
 	"log/slog"
 	"time"
 
-	activedirectory "github.com/woodleighschool/adoverseas/internal/activeDirectory"
 	"github.com/woodleighschool/adoverseas/internal/config"
+	"github.com/woodleighschool/adoverseas/internal/graph"
 	"github.com/woodleighschool/adoverseas/internal/store"
 	"github.com/woodleighschool/adoverseas/internal/store/sqlc"
 )
 
-func NewTaskJob(store *store.Store, adClient activedirectory.Client, cfg config.Config, logger *slog.Logger) Job {
+func NewTaskJob(store *store.Store, graphClient *graph.Client, cfg config.Config, logger *slog.Logger) Job {
 	return func(ctx context.Context) error {
 		if store == nil {
 			return fmt.Errorf("db missing")
-		}
-		err := adClient.Client.Reconnect(ctx, 0, 0)
-		if err != nil {
-			return fmt.Errorf("reconnect ad: %w", err)
 		}
 		currentTasks, err := store.ListScheduleSummaries(ctx)
 		if err != nil {
@@ -36,7 +32,7 @@ func NewTaskJob(store *store.Store, adClient activedirectory.Client, cfg config.
 				if err != nil {
 					return fmt.Errorf("unable to find user from task: %w", err)
 				}
-				if err := UserReturning(user, adClient); err != nil {
+				if err := userReturning(ctx, user, graphClient); err != nil {
 					return fmt.Errorf("unable to execute returning user: %w", err)
 				}
 				if err := store.DeleteSchedule(ctx, task.ID); err != nil {
@@ -48,7 +44,7 @@ func NewTaskJob(store *store.Store, adClient activedirectory.Client, cfg config.
 				if err != nil {
 					return fmt.Errorf("unable to find user from task: %w", err)
 				}
-				if err := UserLeaving(user, adClient); err != nil {
+				if err := userLeaving(ctx, user, graphClient); err != nil {
 					return fmt.Errorf("unable to execute leaving user: %w", err)
 				}
 				if err := store.FlipSchedule(ctx, task.ID); err != nil {
@@ -62,24 +58,27 @@ func NewTaskJob(store *store.Store, adClient activedirectory.Client, cfg config.
 	}
 }
 
-func UserLeaving(user sqlc.User, adClient activedirectory.Client) error {
-	samAccountName := activedirectory.SplitUPN(user.Upn)
-	for _, group := range adClient.AwayGroups {
-		_, err := adClient.Client.AddGroupMembers(group, samAccountName)
+func userLeaving(ctx context.Context, user sqlc.User, graphClient *graph.Client) error {
+	userID, err := graphClient.FetchUserObjectID(ctx, user.Upn)
+	if err != nil {
+		return fmt.Errorf("fetch user object id: %w", err)
+	}
+	for _, group := range graphClient.GroupConfig.AwayGroups {
+		err := graphClient.AddGroupMember(ctx, group, userID)
 		if err != nil {
 			return fmt.Errorf("unable to add user to group: %w", err)
 		}
 	}
 
-	if adClient.MFAGroup != "" && !user.Staff.Bool {
-		_, err := adClient.Client.AddGroupMembers(adClient.MFAGroup, samAccountName)
+	if graphClient.GroupConfig.ForceMFAGroup != "" && !user.Staff.Bool {
+		err := graphClient.AddGroupMember(ctx, graphClient.GroupConfig.ForceMFAGroup, userID)
 		if err != nil {
 			return fmt.Errorf("unable to add user to mfa group: %w", err)
 		}
 	}
 
-	for _, group := range adClient.HomeGroups {
-		_, err := adClient.Client.DeleteGroupMembers(group, samAccountName)
+	for _, group := range graphClient.GroupConfig.HomeGroups {
+		err := graphClient.RemoveGroupMember(ctx, group, userID)
 		if err != nil {
 			return fmt.Errorf("unable to remove user from group: %w", err)
 		}
@@ -87,24 +86,27 @@ func UserLeaving(user sqlc.User, adClient activedirectory.Client) error {
 	return nil
 }
 
-func UserReturning(user sqlc.User, adClient activedirectory.Client) error {
-	samAccountName := activedirectory.SplitUPN(user.Upn)
-	for _, group := range adClient.HomeGroups {
-		_, err := adClient.Client.AddGroupMembers(group, samAccountName)
+func userReturning(ctx context.Context, user sqlc.User, graphClient *graph.Client) error {
+	userID, err := graphClient.FetchUserObjectID(ctx, user.Upn)
+	if err != nil {
+		return fmt.Errorf("fetch user object id: %w", err)
+	}
+	for _, group := range graphClient.GroupConfig.HomeGroups {
+		err := graphClient.AddGroupMember(ctx, group, userID)
 		if err != nil {
 			return fmt.Errorf("unable to add user to group: %w", err)
 		}
 	}
 
-	for _, group := range adClient.AwayGroups {
-		_, err := adClient.Client.DeleteGroupMembers(group, samAccountName)
+	for _, group := range graphClient.GroupConfig.AwayGroups {
+		err := graphClient.RemoveGroupMember(ctx, group, userID)
 		if err != nil {
 			return fmt.Errorf("unable to remove user from group: %w", err)
 		}
 	}
 
-	if adClient.MFAGroup != "" && !user.Staff.Bool {
-		_, err := adClient.Client.DeleteGroupMembers(adClient.MFAGroup, samAccountName)
+	if graphClient.GroupConfig.ForceMFAGroup != "" && !user.Staff.Bool {
+		err := graphClient.RemoveGroupMember(ctx, graphClient.GroupConfig.ForceMFAGroup, userID)
 		if err != nil {
 			return fmt.Errorf("unable to remove user from mfa group: %w", err)
 		}

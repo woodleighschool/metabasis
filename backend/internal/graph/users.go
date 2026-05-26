@@ -17,6 +17,33 @@ type DirectoryUser struct {
 	Active      bool
 }
 
+func (c *Client) FetchUserObjectID(ctx context.Context, userID string) (string, error) {
+	if !c.enabled {
+		return "", ErrNotConfigured
+	}
+	if c.graph == nil {
+		return "", fmt.Errorf("graph client missing")
+	}
+	builder := c.graph.Users()
+	selectFields := []string{
+		"id",
+		"userPrincipalName",
+		"onPremisesSamAccountName",
+		"displayName",
+		"department",
+		"accountEnabled",
+	}
+	resp, err := builder.ByUserId(userID).Get(ctx, &msgraphusers.UserItemRequestBuilderGetRequestConfiguration{
+		QueryParameters: &msgraphusers.UserItemRequestBuilderGetQueryParameters{
+			Select: selectFields,
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("get user object id: %w", err)
+	}
+	return deref(resp.GetId()), nil
+}
+
 func (c *Client) FetchUsers(ctx context.Context) ([]DirectoryUser, error) {
 	if !c.enabled {
 		return nil, ErrNotConfigured

@@ -27,7 +27,8 @@ type Config struct {
 	ADAdminPassword      string        `env:"AD_ADMIN_PASSWORD,required"`
 	AwayGroups           []string      `env:"AWAY_GROUPS,required"`
 	HomeGroups           []string      `env:"HOME_GROUPS,required"`
-	MFAGroup             string        `env:"MFA_GROUP"`
+	EnableMFAGroup       string        `env:"ENABLE_MFA_GROUP"`
+	ForceMFAGroup        string        `env:"FORCE_MFA_GROUP"`
 	AdminIssuer          string        `env:"ADMIN_OIDC_ISSUER,required"`
 	AdminClientID        string        `env:"ADMIN_OIDC_CLIENT_ID,required"`
 	AdminClientSecret    string        `env:"ADMIN_OIDC_CLIENT_SECRET,required"`

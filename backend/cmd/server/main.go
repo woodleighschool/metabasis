@@ -10,7 +10,6 @@ import (
 	"syscall"
 	"time"
 
-	activedirectory "github.com/woodleighschool/adoverseas/internal/activeDirectory"
 	"github.com/woodleighschool/adoverseas/internal/auth"
 	"github.com/woodleighschool/adoverseas/internal/config"
 	"github.com/woodleighschool/adoverseas/internal/graph"
@@ -86,7 +85,7 @@ func main() {
 	}
 
 	scheduler := schedules.NewScheduler(logger)
-	graphClient, err := graph.NewClient(ctx, cfg.GraphTenantID, cfg.GraphClientID, cfg.GraphClientSecret)
+	graphClient, err := graph.NewClient(ctx, cfg.GraphTenantID, cfg.GraphClientID, cfg.GraphClientSecret, cfg.AwayGroups, cfg.HomeGroups, cfg.EnableMFAGroup, cfg.ForceMFAGroup)
 	if err != nil {
 		logger.Warn("graph client", "err", err)
 	}
@@ -96,13 +95,7 @@ func main() {
 		}
 	}
 
-	adClient, err := activedirectory.NewClient(cfg)
-	if err != nil {
-		logger.Error("ad client", "err", err)
-		os.Exit(1)
-	}
-
-	if err := scheduler.Add("@every 10m", "task-checker", schedules.NewTaskJob(db, adClient, cfg, logger)); err != nil {
+	if err := scheduler.Add("@every 10m", "task-checker", schedules.NewTaskJob(db, graphClient, cfg, logger)); err != nil {
 		logger.Error("task checker", "err", err)
 	}
 
@@ -118,7 +111,7 @@ func main() {
 	}
 	router := httpapi.NewRouter(cfg, deps)
 
-	server, errCh := startServer(cfg, logger, router, cfg.ListenAddr)
+	server, errCh := startServer(cfg, logger, router)
 
 	select {
 	case <-ctx.Done():
@@ -156,7 +149,7 @@ func newLogger(level string) *slog.Logger {
 	return slog.New(handler)
 }
 
-func startServer(cfg config.Config, logger *slog.Logger, router http.Handler, listenAddress string) (*http.Server, <-chan error) {
+func startServer(cfg config.Config, logger *slog.Logger, router http.Handler) (*http.Server, <-chan error) {
 	server := &http.Server{
 		Addr:         cfg.ListenAddr,
 		Handler:      router,
