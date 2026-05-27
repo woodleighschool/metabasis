@@ -6,7 +6,7 @@ import { ThemeProvider, CssBaseline, useMediaQuery } from "@mui/material";
 import { ConfirmProvider } from "material-ui-confirm";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import 'dayjs/locale/en-au';
+import "dayjs/locale/en-au";
 import type { PaletteMode } from "@mui/material";
 
 import App from "./App";
@@ -22,7 +22,7 @@ const queryClient = new QueryClient({
 	},
 });
 
-const handleError = (error: Error, info: ErrorInfo) => {
+const handleError = (error: unknown, info: ErrorInfo) => {
 	console.error("App error", { error, info });
 };
 

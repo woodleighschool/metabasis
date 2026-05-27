@@ -51,8 +51,7 @@ export function PageHeader({ title, subtitle, breadcrumbs, action }: PageHeaderP
 			<Stack
 				direction={{ xs: "column", sm: "row" }}
 				spacing={2}
-				justifyContent="space-between"
-				alignItems={{ xs: "flex-start", sm: "center" }}
+				sx={{ justifyContent: "space-between", alignItems: { xs: "flex-start", sm: "center" } }}
 			>
 				<Box>
 					<Typography

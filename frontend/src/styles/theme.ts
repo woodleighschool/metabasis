@@ -1,4 +1,4 @@
-import type { PaletteMode, PaletteOptions, ThemeOptions } from "@mui/material";
+import type { PaletteMode, PaletteOptions } from "@mui/material";
 import { createTheme } from "@mui/material/styles";
 
 const getPalette = (mode: PaletteMode): PaletteOptions => {
@@ -74,4 +74,4 @@ export const createAppTheme = (mode: PaletteMode = "light") =>
 				},
 			},
 		},
-	} as ThemeOptions);
+	});

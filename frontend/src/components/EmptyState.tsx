@@ -26,7 +26,7 @@ export function EmptyState({ title, description, icon, action }: EmptyStateProps
 		>
 			<Stack
 				spacing={2}
-				alignItems="center"
+				sx={{ alignItems: "center" }}
 			>
 				{icon && <Box sx={{ color: "text.secondary", fontSize: 64 }}>{icon}</Box>}
 				<Typography
@@ -39,12 +39,12 @@ export function EmptyState({ title, description, icon, action }: EmptyStateProps
 					<Typography
 						variant="body2"
 						color="text.secondary"
-						maxWidth={400}
+						sx={{ maxWidth: 400 }}
 					>
 						{description}
 					</Typography>
 				)}
-				{action && <Box pt={1}>{action}</Box>}
+				{action && <Box sx={{ pt: 1 }}>{action}</Box>}
 			</Stack>
 		</Box>
 	);

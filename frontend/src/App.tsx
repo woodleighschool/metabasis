@@ -1,7 +1,6 @@
 import { useEffect, useMemo, Suspense, lazy, useCallback, useState } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { useCurrentUser, useStatus } from "./hooks/useQueries";
-import { decode } from "./utils/base64";
 
 import { Box, Container, LinearProgress } from "@mui/material";
 
@@ -12,7 +11,7 @@ const Login = lazy(() => import("./pages/Login"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 
 const SuspenseFallback = () => (
-	<Box p={2}>
+	<Box sx={{ p: 2 }}>
 		<LinearProgress />
 	</Box>
 );
@@ -72,7 +71,7 @@ export default function App() {
 	}, []);
 
 	const userDisplay = user?.display_name ?? "Administrator";
-	const userID = user?.user_id ?? "0"
+	const userID = user?.user_id ?? "0";
 	const userInitial = (userDisplay[0] ?? "A").toUpperCase();
 	const versionLabel = status?.version.version;
 

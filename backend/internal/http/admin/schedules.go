@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/woodleighschool/adoverseas/internal/http/utils"
 	"github.com/woodleighschool/adoverseas/internal/store/sqlc"
 )
@@ -98,12 +99,16 @@ func (h Handler) insertSchedules(w http.ResponseWriter, r *http.Request) {
 		utils.RespondError(w, http.StatusBadRequest, "unable to parse returning date")
 		return
 	}
-	_, err = h.Store.InsertSchedule(r.Context(), sqlc.InsertScheduleParams{
+	if _, err := h.Store.InsertSchedule(r.Context(), sqlc.InsertScheduleParams{
 		Userid:        user.ID,
 		LeavingDate:   pgtype.Timestamptz{Time: leavingDate, Valid: true},
 		ReturningDate: pgtype.Timestamptz{Time: returningDate, Valid: true},
 		LastChangedBy: body.LastUpdatedBy,
-	})
+	}); err != nil {
+		h.Logger.Error("insert schedule", "err", err)
+		utils.RespondError(w, http.StatusInternalServerError, "failed to insert schedule")
+		return
+	}
 	utils.RespondJSON(w, http.StatusAccepted, map[string]any{
 		"message": "successfully added schedule",
 	})

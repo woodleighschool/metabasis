@@ -95,7 +95,7 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 			}
 			clearErrors();
 		}
-	}, [open, mode, schedule, reset, clearErrors]);
+	}, [open, mode, schedule, reset, clearErrors, leaving_date, returning_date]);
 
 	const dialogTitle = mode === "edit" ? "Edit Schedule" : "Create Schedule";
 	const submitLabel = mode === "edit" ? "Save Changes" : "Create";
@@ -103,12 +103,7 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 
 	const buildPayload = (values: ScheduleFormValues) => {
 		const now = dayjs();
-		let overseas: boolean = false;
-		if (now.isAfter(values.leaving_date) && now.isBefore(values.returning_date)) {
-			overseas = true;
-		} else {
-			overseas = false;
-		}
+		const overseas = now.isAfter(values.leaving_date) && now.isBefore(values.returning_date);
 		const payload: {
 			upn: string;
 			leaving_date: string;
@@ -120,7 +115,7 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 			leaving_date: values.leaving_date.toISOString(),
 			returning_date: values.returning_date.toISOString(),
 			last_updated_by: user?.display_name ?? "SYSTEM",
-			overseas: overseas,
+			overseas,
 		};
 		return payload;
 	};
@@ -166,7 +161,7 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 					>
 						<Stack
 							spacing={2.5}
-							flex={{ xs: "auto" }}
+							sx={{ flex: { xs: "auto" } }}
 						>
 							<Controller
 								name="display_name"
@@ -190,11 +185,7 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 												label="User"
 												placeholder="John Doe"
 												required
-												slotProps={{
-													input: params.InputProps,
-													htmlInput: params.inputProps,
-													inputLabel: params.InputLabelProps,
-												}}
+												slotProps={params.slotProps}
 												fullWidth={params.fullWidth}
 												disabled={params.disabled}
 												id={params.id}
@@ -220,7 +211,7 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 						</Stack>
 						<Stack
 							spacing={3}
-							flex={{ xs: "auto" }}
+							sx={{ flex: { xs: "auto" } }}
 						>
 							<Controller
 								name="leaving_date"

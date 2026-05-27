@@ -104,7 +104,10 @@ func (c *Client) FetchUsers(ctx context.Context) ([]DirectoryUser, error) {
 
 func (c *Client) fetchUserPhoto(ctx context.Context, user msgraphmodels.Userable) []byte {
 	adapter := c.graph.GetAdapter()
-	builder := msgraphusers.NewItemPhotosItemValueContentRequestBuilder(fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/photos/96x96/$value", deref(user.GetId())), adapter)
+	builder := msgraphusers.NewItemPhotosItemValueContentRequestBuilder(
+		fmt.Sprintf("https://graph.microsoft.com/v1.0/users/%s/photos/96x96/$value", deref(user.GetId())),
+		adapter,
+	)
 
 	photoData, err := builder.Get(ctx, &msgraphusers.ItemPhotosItemValueContentRequestBuilderGetRequestConfiguration{})
 

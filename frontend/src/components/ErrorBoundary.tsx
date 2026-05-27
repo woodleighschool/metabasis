@@ -15,8 +15,7 @@ function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
 			>
 				<Stack
 					spacing={2}
-					alignItems="center"
-					textAlign="center"
+					sx={{ alignItems: "center", textAlign: "center" }}
 				>
 					<ShieldIcon />
 					<Typography variant="h5">Something went wrong</Typography>
@@ -66,7 +65,7 @@ function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
 interface ErrorBoundaryProps {
 	children: React.ReactNode;
 	fallback?: React.ComponentType<ErrorFallbackProps>;
-	onError?: (error: Error, errorInfo: ErrorInfo) => void;
+	onError?: (error: unknown, errorInfo: ErrorInfo) => void;
 }
 
 export function ErrorBoundary({ children, fallback = ErrorFallback, onError }: ErrorBoundaryProps) {

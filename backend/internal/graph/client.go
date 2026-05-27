@@ -24,7 +24,14 @@ type GroupConfig struct {
 	ForceMFAGroup  string
 }
 
-func NewClient(ctx context.Context, tenantID, clientID, clientSecret string, awayGroups []string, homeGroups []string, enableMFAGroup string, forceMFAGroup string) (*Client, error) {
+func NewClient(
+	ctx context.Context,
+	tenantID, clientID, clientSecret string,
+	awayGroups []string,
+	homeGroups []string,
+	enableMFAGroup string,
+	forceMFAGroup string,
+) (*Client, error) {
 	if tenantID == "" || clientID == "" || clientSecret == "" {
 		return &Client{enabled: false}, nil
 	}

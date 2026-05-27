@@ -26,7 +26,6 @@ var (
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -53,12 +52,14 @@ func main() {
 	})
 	if err != nil {
 		logger.Error("connect db", "err", err)
+		stop()
 		os.Exit(1)
 	}
-	defer db.Close()
 
 	if err := db.Migrate(ctx); err != nil {
 		logger.Error("run migrations", "err", err)
+		db.Close()
+		stop()
 		os.Exit(1)
 	}
 
@@ -71,6 +72,8 @@ func main() {
 	)
 	if err != nil {
 		logger.Error("oidc provider", "err", err)
+		db.Close()
+		stop()
 		os.Exit(1)
 	}
 
@@ -81,26 +84,44 @@ func main() {
 	)
 	if err != nil {
 		logger.Error("session manager", "err", err)
+		db.Close()
+		stop()
 		os.Exit(1)
 	}
 
 	scheduler := schedules.NewScheduler(logger)
-	graphClient, err := graph.NewClient(ctx, cfg.GraphTenantID, cfg.GraphClientID, cfg.GraphClientSecret, cfg.AwayGroups, cfg.HomeGroups, cfg.EnableMFAGroup, cfg.ForceMFAGroup)
+	graphClient, err := graph.NewClient(
+		ctx,
+		cfg.GraphTenantID,
+		cfg.GraphClientID,
+		cfg.GraphClientSecret,
+		cfg.AwayGroups,
+		cfg.HomeGroups,
+		cfg.EnableMFAGroup,
+		cfg.ForceMFAGroup,
+	)
 	if err != nil {
 		logger.Warn("graph client", "err", err)
 	}
 	if graphClient != nil && graphClient.Enabled() {
-		if err := scheduler.Add("@every 5m", "entra-users", schedules.NewUserJob(db, graphClient, logger, cfg)); err != nil {
+		if err := scheduler.Add(
+			"@every 5m",
+			"entra-users",
+			schedules.NewUserJob(db, graphClient, logger, cfg),
+		); err != nil {
 			logger.Warn("schedule users", "err", err)
 		}
 	}
 
-	if err := scheduler.Add("@every 10m", "task-checker", schedules.NewTaskJob(db, graphClient, cfg, logger)); err != nil {
+	if err := scheduler.Add(
+		"@every 10m",
+		"task-checker",
+		schedules.NewTaskJob(db, graphClient, cfg, logger),
+	); err != nil {
 		logger.Error("task checker", "err", err)
 	}
 
 	scheduler.Start()
-	defer scheduler.Stop()
 
 	deps := httpapi.Deps{
 		Store:        db,
@@ -119,6 +140,9 @@ func main() {
 	case err := <-errCh:
 		if err != nil {
 			logger.Error("server error", "err", err)
+			scheduler.Stop()
+			db.Close()
+			stop()
 			os.Exit(1)
 		}
 	}
@@ -131,6 +155,9 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("graceful shutdown", "err", err)
 	}
+	scheduler.Stop()
+	db.Close()
+	stop()
 }
 
 func newLogger(level string) *slog.Logger {

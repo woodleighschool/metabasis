@@ -56,10 +56,7 @@ func (m *SessionManager) Issue(w http.ResponseWriter, session Session) error {
 	if err != nil {
 		return err
 	}
-	token, err := m.sign(payload)
-	if err != nil {
-		return err
-	}
+	token := m.sign(payload)
 	http.SetCookie(w, &http.Cookie{
 		Name:     m.name,
 		Value:    token,
@@ -103,13 +100,11 @@ func (m *SessionManager) Read(r *http.Request) (Session, error) {
 	return sess, nil
 }
 
-func (m *SessionManager) sign(payload []byte) (string, error) {
+func (m *SessionManager) sign(payload []byte) string {
 	signer := hmac.New(sha256.New, m.secret)
-	if _, err := signer.Write(payload); err != nil {
-		return "", nil
-	}
+	_, _ = signer.Write(payload)
 	sig := signer.Sum(nil)
-	return base64.RawURLEncoding.EncodeToString(payload) + "." + base64.RawURLEncoding.EncodeToString(sig), nil
+	return base64.RawURLEncoding.EncodeToString(payload) + "." + base64.RawURLEncoding.EncodeToString(sig)
 }
 
 func (m *SessionManager) verify(token string) ([]byte, error) {
@@ -126,7 +121,7 @@ func (m *SessionManager) verify(token string) ([]byte, error) {
 		return nil, ErrInvalidSession
 	}
 	signer := hmac.New(sha256.New, m.secret)
-	signer.Write(payload)
+	_, _ = signer.Write(payload)
 	if !hmac.Equal(expectedSig, signer.Sum(nil)) {
 		return nil, ErrInvalidSession
 	}

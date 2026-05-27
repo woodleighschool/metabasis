@@ -113,7 +113,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
 				throw parseError;
 			}
 
-			throw new Error(text || res.statusText);
+			throw new Error(text || res.statusText, { cause: parseError });
 		}
 	}
 

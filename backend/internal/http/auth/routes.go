@@ -15,7 +15,6 @@ import (
 
 	"github.com/woodleighschool/adoverseas/internal/auth"
 	"github.com/woodleighschool/adoverseas/internal/config"
-	"github.com/woodleighschool/adoverseas/internal/store"
 )
 
 const (
@@ -26,7 +25,6 @@ const (
 type Handler struct {
 	provider             *auth.OIDCProvider
 	sessions             *auth.SessionManager
-	store                *store.Store
 	logger               *slog.Logger
 	siteURL              string
 	stateCookie          string
@@ -40,12 +38,13 @@ type oidcState struct {
 	Redirect string `json:"redirect"`
 }
 
-type activeUser struct {
-	DisplayName string `json:"display_name"`
-	Photo       []byte `json:"photo"`
-}
-
-func RegisterRoutes(r chi.Router, cfg config.Config, provider *auth.OIDCProvider, sessions *auth.SessionManager, logger *slog.Logger) {
+func RegisterRoutes(
+	r chi.Router,
+	cfg config.Config,
+	provider *auth.OIDCProvider,
+	sessions *auth.SessionManager,
+	logger *slog.Logger,
+) {
 	if sessions == nil {
 		if logger != nil {
 			logger.Warn("auth routes disabled: missing session manager")
@@ -79,7 +78,7 @@ func RegisterRoutes(r chi.Router, cfg config.Config, provider *auth.OIDCProvider
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	method := r.URL.Query().Get("method")
 
-	if r.Method == "POST" || method == "local" {
+	if r.Method == http.MethodPost || method == "local" {
 		h.localLogin(w, r)
 		return
 	}
@@ -243,7 +242,7 @@ func (h *Handler) localLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Conten-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{"display_name": "Master Claus"}); err != nil {
 		h.logger.Error("encode local login response", "err", err)
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)

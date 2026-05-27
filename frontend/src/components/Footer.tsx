@@ -22,14 +22,12 @@ export function Footer({ versionLabel, onOpenCredits }: FooterProps) {
 					<Stack
 						direction={{ xs: "column", sm: "row" }}
 						spacing={1}
-						alignItems={{ xs: "flex-start", sm: "center" }}
-						justifyContent="space-between"
-						sx={{ width: "100%" }}
+						sx={{ width: "100%", alignItems: { xs: "flex-start", sm: "center" }, justifyContent: "space-between" }}
 					>
 						<Stack
 							direction="row"
 							spacing={1}
-							alignItems="center"
+							sx={{ alignItems: "center" }}
 						>
 							<IconButton
 								component="a"

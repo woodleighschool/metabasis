@@ -8,18 +8,18 @@ import (
 )
 
 type Config struct {
-	ListenAddr           string        `env:"LISTEN_ADDR" envDefault:":8080"`
+	ListenAddr           string        `env:"LISTEN_ADDR"                       envDefault:":8080"`
 	ApiKey               string        `env:"API_KEY,required"`
-	TimeLocation         string        `env:"TIME_LOCATION" envDefault:"Australia/Melbourne"`
+	TimeLocation         string        `env:"TIME_LOCATION"                     envDefault:"Australia/Melbourne"`
 	DatabaseHost         string        `env:"DATABASE_HOST,required"`
-	DatabasePort         string        `env:"DATABASE_PORT" envDefault:"5432"`
+	DatabasePort         string        `env:"DATABASE_PORT"                     envDefault:"5432"`
 	DatabaseName         string        `env:"DATABASE_NAME,required"`
 	DatabaseUser         string        `env:"DATABASE_USER,required"`
 	DatabasePassword     string        `env:"DATABASE_PASSWORD,required"`
-	DatabaseSSLMode      string        `env:"DATABASE_SSLMODE" envDefault:"disable"`
-	MaxConnLifetime      time.Duration `env:"DB_MAX_CONN_LIFETIME" envDefault:"30m"`
-	MaxConnections       int32         `env:"DB_MAX_CONNECTIONS" envDefault:"10"`
-	MinConnections       int32         `env:"DB_MIN_CONNECTIONS" envDefault:"2"`
+	DatabaseSSLMode      string        `env:"DATABASE_SSLMODE"                  envDefault:"disable"`
+	MaxConnLifetime      time.Duration `env:"DB_MAX_CONN_LIFETIME"              envDefault:"30m"`
+	MaxConnections       int32         `env:"DB_MAX_CONNECTIONS"                envDefault:"10"`
+	MinConnections       int32         `env:"DB_MIN_CONNECTIONS"                envDefault:"2"`
 	StaffDepartment      []string      `env:"STAFF_DEPARTMENT,required"`
 	ADHost               string        `env:"AD_HOST,required"`
 	ADBase               string        `env:"AD_BASE,required"`
@@ -33,13 +33,13 @@ type Config struct {
 	AdminClientID        string        `env:"ADMIN_OIDC_CLIENT_ID,required"`
 	AdminClientSecret    string        `env:"ADMIN_OIDC_CLIENT_SECRET,required"`
 	SessionSecret        string        `env:"SESSION_SECRET,required"`
-	SessionCookieName    string        `env:"SESSION_COOKIE_NAME" envDefault:"grinch_session"`
+	SessionCookieName    string        `env:"SESSION_COOKIE_NAME"               envDefault:"grinch_session"`
 	InitialAdminPassword string        `env:"INITIAL_ADMIN_PASSWORD"`
 	SiteBaseURL          string        `env:"SITE_BASE_URL,required"`
 	GraphTenantID        string        `env:"GRAPH_TENANT_ID"`
 	GraphClientID        string        `env:"GRAPH_CLIENT_ID"`
 	GraphClientSecret    string        `env:"GRAPH_CLIENT_SECRET"`
-	LogLevel             string        `env:"LOG_LEVEL" envDefault:"info"`
+	LogLevel             string        `env:"LOG_LEVEL"                         envDefault:"info"`
 	FrontendDistDir      string        `env:"FRONTEND_DIST_DIR"`
 }
 

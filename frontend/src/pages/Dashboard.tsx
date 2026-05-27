@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useConfirm } from "material-ui-confirm";
-import { Avatar, Button, Chip, Divider, Paper, Stack, Typography } from "@mui/material";
-import { DataGrid, GridActionsCellItem, type GridColDef} from "@mui/x-data-grid";
+import { Avatar, Button, Chip, Paper, Stack, Typography } from "@mui/material";
+import { DataGrid, GridActionsCellItem, type GridColDef } from "@mui/x-data-grid";
 import AddIcon from "@mui/icons-material/Add";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -31,7 +31,7 @@ function createScheduleColumns({ onEdit, onRequestDelete, deletingScheduleId }: 
 			sortable: true,
 			filterable: true,
 			renderCell: (params) => (
-				<Stack direction="row" alignItems="center" justifyContent="left" spacing={2}>
+				<Stack direction="row" spacing={2} sx={{ alignItems: "center", justifyContent: "left" }}>
 					<Avatar
 						alt={params.row.display_name[0] ?? "A"}
 						src={`/api/v1/users/${params.row.user}/photo`}
@@ -127,10 +127,10 @@ function createScheduleColumns({ onEdit, onRequestDelete, deletingScheduleId }: 
 					key="delete"
 					icon={<DeleteIcon color="error" />}
 					label="Delete"
-					disabled={deletingScheduleId == String(params.id)}
+					disabled={deletingScheduleId === String(params.id)}
 					onClick={(event) => {
 						event.stopPropagation();
-						onRequestDelete(String(params.id));
+						void onRequestDelete(String(params.id));
 					}}
 					showInMenu
 				/>,

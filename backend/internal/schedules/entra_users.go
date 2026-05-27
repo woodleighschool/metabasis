@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+
 	"github.com/woodleighschool/adoverseas/internal/config"
 	"github.com/woodleighschool/adoverseas/internal/graph"
 	"github.com/woodleighschool/adoverseas/internal/store"
@@ -27,7 +28,6 @@ func NewUserJob(store *store.Store, graphClient *graph.Client, logger *slog.Logg
 			return fmt.Errorf("fetch users: %w", err)
 		}
 		for _, u := range users {
-			var staff bool = false
 			if u.UPN == "" {
 				continue
 			}
@@ -39,11 +39,7 @@ func NewUserJob(store *store.Store, graphClient *graph.Client, logger *slog.Logg
 				continue
 			}
 
-			if slices.Contains(cfg.StaffDepartment, u.Department) {
-				staff = true
-			} else {
-				staff = false
-			}
+			staff := slices.Contains(cfg.StaffDepartment, u.Department)
 
 			if !hasObjectID {
 				existing, err := store.GetUserByUPN(ctx, u.UPN)

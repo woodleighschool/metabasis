@@ -10,20 +10,20 @@ services:
     ports:
       - "5432:5432"
 
-  # adoverseas:
-  #   build: .
-  #   ports:
-  #     - "8080:8080"
-  #   environment:
-  #     DATABASE_HOST: db
-  #     DATABASE_PORT: 5432
-  #     DATABASE_NAME: adoverseas
-  #     DATABASE_USER: postgres
-  #     DATABASE_PASSWORD: postgres
-  #   depends_on:
-  #     - db
-  #   env_file:
-  #     - .env
+  adoverseas:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_HOST: db
+      DATABASE_PORT: 5432
+      DATABASE_NAME: adoverseas
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+    depends_on:
+      - db
+    env_file:
+      - .env
 
 volumes:
   adoverseas_data:

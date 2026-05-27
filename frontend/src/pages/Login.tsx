@@ -90,14 +90,13 @@ export default function Login({ onLogin }: LoginProps) {
 							<Stack
 								direction="row"
 								spacing={1.25}
-								alignItems="center"
-								justifyContent="center"
+								sx={{ alignItems: "center", justifyContent: "center" }}
 							>
 								<Typography
 									variant="h4"
 									component="h1"
-									fontWeight={700}
 									noWrap
+									sx={{ fontWeight: 700 }}
 								>
 									ADOverseas
 								</Typography>
@@ -105,7 +104,7 @@ export default function Login({ onLogin }: LoginProps) {
 
 							<Typography
 								color="text.secondary"
-								textAlign="center"
+								sx={{ textAlign: "center" }}
 							>
 								View and manage current booked overseas travels
 							</Typography>
@@ -125,7 +124,7 @@ export default function Login({ onLogin }: LoginProps) {
 									<Typography
 										variant="caption"
 										color="text.secondary"
-										textAlign="center"
+										sx={{ textAlign: "center" }}
 									>
 										OAuth sign-in is disabled. Use your local administrator credentials instead.
 									</Typography>
