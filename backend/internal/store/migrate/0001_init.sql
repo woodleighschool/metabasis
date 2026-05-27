@@ -30,3 +30,8 @@ CREATE TABLE IF NOT EXISTS schedules (
 	last_changed_by 	TEXT NOT NULL DEFAULT 'SYSTEM',
 	last_changed 		TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS urgent_schedules (
+	id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+	userID UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE
+);

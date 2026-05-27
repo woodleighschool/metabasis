@@ -68,6 +68,12 @@ func (h Handler) insertSchedule(w http.ResponseWriter, r *http.Request) {
 		utils.RespondError(w, http.StatusBadRequest, "unable to parse returning date")
 		return
 	}
+	if !user.Staff.Bool {
+		_, err := h.Store.InsertUrgentSchedule(r.Context(), user.ID)
+		if err != nil {
+			h.Logger.Error("failed to insert urgent schedule", "err", err)
+		}
+	}
 	if _, err := h.Store.InsertSchedule(r.Context(), sqlc.InsertScheduleParams{
 		Userid:        user.ID,
 		LeavingDate:   pgtype.Timestamptz{Time: leavingDate, Valid: true},

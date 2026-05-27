@@ -80,22 +80,22 @@ export function ScheduleDialog({ open, mode = "edit", users, schedule, onClose, 
 		formState: { isSubmitting, errors },
 	} = form;
 
-	useEffect(() => {
-		if (open) {
-			if (mode === "edit" && schedule) {
-				reset({
-					display_name: schedule.display_name,
-					upn: schedule.upn,
-					leaving_date: leaving_date,
-					returning_date: returning_date,
-					overseas: schedule.overseas,
-				});
-			} else {
-				reset(defaultValues);
-			}
-			clearErrors();
-		}
-	}, [open, mode, schedule, reset, clearErrors, leaving_date, returning_date]);
+	// useEffect(() => {
+	// 	if (open) {
+	// 		if (mode === "edit" && schedule) {
+	// 			reset({
+	// 				display_name: schedule.display_name,
+	// 				upn: schedule.upn,
+	// 				leaving_date: leaving_date,
+	// 				returning_date: returning_date,
+	// 				overseas: schedule.overseas,
+	// 			});
+	// 		} else {
+	// 			reset(defaultValues);
+	// 		}
+	// 		clearErrors();
+	// 	}
+	// }, [open, mode, schedule, reset, clearErrors, leaving_date, returning_date]);
 
 	const dialogTitle = mode === "edit" ? "Edit Schedule" : "Create Schedule";
 	const submitLabel = mode === "edit" ? "Save Changes" : "Create";

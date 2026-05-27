@@ -17,6 +17,26 @@ func NewTaskJob(store *store.Store, graphClient *graph.Client, cfg config.Config
 		if store == nil {
 			return fmt.Errorf("db missing")
 		}
+		currentUrgentTasks, err := store.ListUrgentSchedules(ctx)
+		if err != nil {
+			logger.Error("unable to retrieve urgent tasks", "err", err)
+		}
+		if len(currentUrgentTasks) == 0 {
+			logger.Debug("No urgent tasks to action")
+		}
+		for _, task := range currentUrgentTasks {
+			user, err := store.GetUser(ctx, task.Userid)
+			if err != nil {
+				logger.Error("unable to get user from urgent task", "err", err)
+			}
+			if err := enableMFA(ctx, user, graphClient); err != nil {
+				logger.Error("unable to enable MFA for user", "user", user.Upn, "err", err)
+			}
+			if err := store.DeleteUrgentSchedule(ctx, task.ID); err != nil {
+				logger.Error("unable to delete urgent job from store", "task", task.ID, "err", err)
+			}
+		}
+
 		currentTasks, err := store.ListScheduleSummaries(ctx)
 		if err != nil {
 			return fmt.Errorf("list tasks: %w", err)
@@ -108,8 +128,24 @@ func userReturning(ctx context.Context, user sqlc.User, graphClient *graph.Clien
 	if graphClient.GroupConfig.ForceMFAGroup != "" && !user.Staff.Bool {
 		err := graphClient.RemoveGroupMember(ctx, graphClient.GroupConfig.ForceMFAGroup, userID)
 		if err != nil {
-			return fmt.Errorf("unable to remove user from mfa group: %w", err)
+			return fmt.Errorf("unable to remove user from force mfa group: %w", err)
 		}
+		err = graphClient.RemoveGroupMember(ctx, graphClient.GroupConfig.EnableMFAGroup, userID)
+		if err != nil {
+			return fmt.Errorf("unable to remove user from enable mfa group: %w", err)
+		}
+	}
+	return nil
+}
+
+func enableMFA(ctx context.Context, user sqlc.User, graphClient *graph.Client) error {
+	userID, err := graphClient.FetchUserObjectID(ctx, user.Upn)
+	if err != nil {
+		return fmt.Errorf("fetch user object id: %w", err)
+	}
+	err = graphClient.AddGroupMember(ctx, graphClient.GroupConfig.EnableMFAGroup, userID)
+	if err != nil {
+		return fmt.Errorf("unable to add user to enable mfa group: %w", err)
 	}
 	return nil
 }

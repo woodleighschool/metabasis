@@ -63,3 +63,15 @@ func (s *Store) GetSchedule(ctx context.Context, id uuid.UUID) (sqlc.Schedule, e
 func (s *Store) DeleteSchedule(ctx context.Context, id uuid.UUID) error {
 	return s.queries.DeleteSchedule(ctx, id)
 }
+
+func (s *Store) InsertUrgentSchedule(ctx context.Context, userid uuid.UUID) (sqlc.UrgentSchedule, error) {
+	return s.queries.InsertUrgentSchedule(ctx, userid)
+}
+
+func (s *Store) ListUrgentSchedules(ctx context.Context) ([]sqlc.ListUrgentSchedulesRow, error) {
+	return s.queries.ListUrgentSchedules(ctx)
+}
+
+func (s *Store) DeleteUrgentSchedule(ctx context.Context, id uuid.UUID) error {
+	return s.queries.DeleteUrgentSchedule(ctx, id)
+}

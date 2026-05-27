@@ -114,7 +114,7 @@ func main() {
 	}
 
 	if err := scheduler.Add(
-		"@every 10m",
+		"@every 1m",
 		"task-checker",
 		schedules.NewTaskJob(db, graphClient, cfg, logger),
 	); err != nil {
