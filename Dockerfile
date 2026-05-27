@@ -7,7 +7,7 @@ COPY frontend .
 ENV NODE_ENV=production
 RUN npm run build
 
-# Build the grinch binary
+# Build the adoverseas binary
 FROM golang:1.26 AS backend
 ARG TARGETOS
 ARG TARGETARCH
@@ -39,7 +39,7 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 		-ldflags="${LDFLAGS} -w -s" \
 		-o adoverseas cmd/server/main.go
 
-# Use distroless as minimal base image to package the grinch binary
+# Use distroless as minimal base image to package the adoverseas binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /

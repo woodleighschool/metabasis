@@ -66,7 +66,7 @@ function ErrorFallback({ error, resetErrorBoundary }: ErrorFallbackProps) {
 interface ErrorBoundaryProps {
 	children: React.ReactNode;
 	fallback?: React.ComponentType<ErrorFallbackProps>;
-	onError?: (error: Error, errorInfo: ErrorInfo) => void;
+	onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
 }
 
 export function ErrorBoundary({ children, fallback = ErrorFallback, onError }: ErrorBoundaryProps) {
