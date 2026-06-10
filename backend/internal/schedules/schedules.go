@@ -35,6 +35,9 @@ func NewTaskJob(store *store.Store, graphClient *graph.Client, cfg config.Config
 			if err := store.DeleteUrgentSchedule(ctx, task.ID); err != nil {
 				logger.Error("unable to delete urgent job from store", "task", task.ID, "err", err)
 			}
+			if err == nil {
+				logger.Debug("Successfully completed urgent task", "task", task.ID, "user", user.Upn)
+			}
 		}
 
 		currentTasks, err := store.ListScheduleSummaries(ctx)
@@ -50,30 +53,36 @@ func NewTaskJob(store *store.Store, graphClient *graph.Client, cfg config.Config
 			if task.Overseas && task.ReturningDate.Time.Before(currentTime) {
 				user, err := store.GetUser(ctx, task.Userid)
 				if err != nil {
-					return fmt.Errorf("unable to find user from task: %w", err)
+					return fmt.Errorf("unable to find user from task: %w", err, "task", task.ID)
 				}
 				if err := userReturning(ctx, user, graphClient); err != nil {
-					return fmt.Errorf("unable to execute returning user: %w", err)
+					return fmt.Errorf("unable to execute returning user: %w", err, "task", task.ID)
 				}
 				if err := store.DeleteSchedule(ctx, task.ID); err != nil {
-					return fmt.Errorf("failed to remove leftover task: %w", err)
+					return fmt.Errorf("failed to remove leftover task: %w", err, "task", task.ID)
+				}
+				if err == nil {
+					logger.Debug("successfully completed returning task", "task", task.ID, "user", user.Upn)
 				}
 				continue
 			} else if !task.Overseas && task.LeavingDate.Time.Before(currentTime) {
 				user, err := store.GetUser(ctx, task.Userid)
 				if err != nil {
-					return fmt.Errorf("unable to find user from task: %w", err)
+					return fmt.Errorf("unable to find user from task: %w", err, "task", task.ID)
 				}
 				if err := userLeaving(ctx, user, graphClient); err != nil {
-					return fmt.Errorf("unable to execute leaving user: %w", err)
+					return fmt.Errorf("unable to execute leaving user: %w", err, "task", task.ID)
 				}
 				if err := store.FlipSchedule(ctx, task.ID); err != nil {
-					return fmt.Errorf("failed to update overseas flag on task: %w", err)
+					return fmt.Errorf("failed to update overseas flag on task: %w", err, "task", task.ID)
+				}
+				if err == nil {
+					logger.Debug("successfully completed leaving task", "task", task.ID, "user", user.Upn)
 				}
 				continue
 			}
 		}
-		logger.Debug("All tasks actioned successfully")
+		logger.Debug("All tasks actioned")
 		return nil
 	}
 }
