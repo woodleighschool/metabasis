@@ -64,9 +64,7 @@ func NewTaskJob(store *store.Store, graphClient *graph.Client, cfg config.Config
 					logger.Error("failed to remove leftover task", "err", err, "task", task.ID.String())
 					return fmt.Errorf("%w", err)
 				}
-				if err == nil {
-					logger.Debug("successfully completed returning task", "task", task.ID.String(), "user", user.Upn)
-				}
+				logger.Debug("successfully completed returning task", "task", task.ID.String(), "user", user.Upn)
 				continue
 			} else if !task.Overseas && task.LeavingDate.Time.Before(currentTime) {
 				user, err := store.GetUser(ctx, task.Userid)
@@ -82,9 +80,7 @@ func NewTaskJob(store *store.Store, graphClient *graph.Client, cfg config.Config
 					logger.Error("failed to update overseas flag on task", "err", err, "task", task.ID.String())
 					return fmt.Errorf("%w", err)
 				}
-				if err == nil {
-					logger.Debug("successfully completed leaving task", "task", task.ID.String(), "user", user.Upn)
-				}
+				logger.Debug("successfully completed leaving task", "task", task.ID.String(), "user", user.Upn)
 				continue
 			}
 		}

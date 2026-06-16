@@ -34,7 +34,16 @@ func (c *Client) RemoveGroupMember(ctx context.Context, groupID string, userID s
 	odataId := "https://graph.microsoft.com/v1.0/directoryObjects/" + userID
 	requestBody.SetOdataId(&odataId)
 
-	err := c.graph.Groups().ByGroupId(groupID).Members().ByDirectoryObjectId(userID).Ref().Delete(ctx, nil)
+	existingMembers, err := c.getGroupMembers(ctx, groupID)
+	if err != nil {
+		return fmt.Errorf("unable to get existing members: %w", err)
+	}
+
+	if !slices.Contains(existingMembers, userID) {
+		return nil
+	}
+
+	err = c.graph.Groups().ByGroupId(groupID).Members().ByDirectoryObjectId(userID).Ref().Delete(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("remove group member: %w", err)
 	}
