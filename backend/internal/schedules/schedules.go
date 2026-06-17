@@ -36,7 +36,7 @@ func NewTaskJob(store *store.Store, graphClient *graph.Client, cfg config.Config
 				logger.Error("unable to delete urgent job from store", "task", task.ID, "err", err)
 			}
 			if err == nil {
-				logger.Debug("Successfully completed urgent task", "task", task.ID, "user", user.Upn)
+				logger.Info("Successfully completed urgent task", "task", task.ID, "user", user.Upn)
 			}
 		}
 
@@ -64,7 +64,7 @@ func NewTaskJob(store *store.Store, graphClient *graph.Client, cfg config.Config
 					logger.Error("failed to remove leftover task", "err", err, "task", task.ID.String())
 					return fmt.Errorf("%w", err)
 				}
-				logger.Debug("successfully completed returning task", "task", task.ID.String(), "user", user.Upn)
+				logger.Info("successfully completed returning task", "task", task.ID.String(), "user", user.Upn)
 				continue
 			} else if !task.Overseas && task.LeavingDate.Time.Before(currentTime) {
 				user, err := store.GetUser(ctx, task.Userid)
@@ -80,7 +80,7 @@ func NewTaskJob(store *store.Store, graphClient *graph.Client, cfg config.Config
 					logger.Error("failed to update overseas flag on task", "err", err, "task", task.ID.String())
 					return fmt.Errorf("%w", err)
 				}
-				logger.Debug("successfully completed leaving task", "task", task.ID.String(), "user", user.Upn)
+				logger.Info("successfully completed leaving task", "task", task.ID.String(), "user", user.Upn)
 				continue
 			}
 		}
