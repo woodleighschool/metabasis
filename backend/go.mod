@@ -3,19 +3,19 @@ module github.com/woodleighschool/adoverseas
 go 1.26.3
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0
 	github.com/caarlos0/env/v11 v11.4.1
-	github.com/coreos/go-oidc/v3 v3.18.0
-	github.com/go-chi/chi/v5 v5.3.0
+	github.com/coreos/go-oidc/v3 v3.20.0
+	github.com/go-chi/chi/v5 v5.3.1
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.9.2
-	github.com/microsoftgraph/msgraph-sdk-go v1.99.0
+	github.com/jackc/pgx/v5 v5.10.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.100.0
 	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/oauth2 v0.36.0
 )
 
 require (
-	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.1 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.22.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity/cache v0.4.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.7.2 // indirect
