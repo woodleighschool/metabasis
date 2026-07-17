@@ -27,7 +27,7 @@
     "d3-array": "^3.2.4",
     "date-fns": "^4.3.0",
     "dayjs": "^1.11.21",
-    "fuse.js": "^7.3.0",
+    "fuse.js": "^7.5.0",
     "match-sorter": "^8.3.0",
     "material-ui-confirm": "^4.0.0",
     "notistack": "^3.0.2",
