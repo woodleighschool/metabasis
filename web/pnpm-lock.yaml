@@ -36,7 +36,7 @@ importers:
         specifier: ^9.0.0-alpha.10
         version: 9.0.0-alpha.10(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@tanstack/react-query':
-        specifier: ^5.101.2
+        specifier: ^5.101.4
         version: 5.101.4(react@19.2.8)
       d3-array:
         specifier: ^3.2.4
