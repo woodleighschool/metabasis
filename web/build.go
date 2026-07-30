@@ -1,4 +1,3 @@
-// Package webdist embeds the production frontend into the ADOverseas binary.
 package webdist
 
 import (
