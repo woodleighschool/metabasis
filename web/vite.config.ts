@@ -1,61 +1,34 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { fileURLToPath, URL } from "node:url";
+import path from "node:path";
 
-const isProd = process.env.NODE_ENV === "production";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+const projectDirectory = import.meta.dirname;
 
 export default defineConfig({
   plugins: [
-    react(),
+    react({
+      jsxRuntime: "automatic",
+    }),
   ],
   resolve: {
     alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@": path.resolve(projectDirectory, "./src"),
     },
   },
   envPrefix: ["APP_"],
   server: {
     port: 5173,
     strictPort: true,
-    hmr: { overlay: true },
     proxy: {
       "/api": {
-        target: "http://localhost:8080",
         changeOrigin: true,
-        secure: false,
+        target: "http://localhost:8080",
       },
       "/healthz": {
-        target: "http://localhost:8080",
         changeOrigin: true,
-        secure: false,
+        target: "http://localhost:8080",
       },
     },
-  },
-  preview: {
-    port: 4173,
-    strictPort: true,
-  },
-  build: {
-    target: "es2020",
-    outDir: "dist",
-    assetsDir: "assets",
-    cssCodeSplit: true,
-    sourcemap: !!process.env.SOURCEMAP && isProd,
-    chunkSizeWarningLimit: 900,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom") || id.includes("node_modules/react-router-dom")) {
-            return "react";
-          }
-          if (id.includes("node_modules/@mui/material") || id.includes("node_modules/@mui/icons-material")) {
-            return "mui";
-          }
-        },
-      },
-    },
-  },
-  define: {
-    __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
   },
 });

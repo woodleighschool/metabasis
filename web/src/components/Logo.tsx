@@ -1,6 +1,6 @@
-import { type ReactElement } from "react";
 import { type SvgIconProps } from "@mui/material";
 import { createSvgIcon } from "@mui/material/utils";
+import { type ReactElement } from "react";
 
 const LogoIcon = createSvgIcon(
   <path
@@ -13,10 +13,5 @@ const LogoIcon = createSvgIcon(
 export type LogoProps = SvgIconProps;
 
 export function Logo(properties: SvgIconProps): ReactElement {
-  return (
-    <LogoIcon
-      viewBox="0 0 835.87 1024"
-      {...properties}
-    />
-  );
+  return <LogoIcon viewBox="0 0 835.87 1024" {...properties} />;
 }

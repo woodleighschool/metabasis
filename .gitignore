@@ -1,41 +1,43 @@
-# Go binaries
+# Go binaries and test artifacts
 *.exe
-*.exe~
 *.dll
 *.dylib
-
-# Test binary, built with `go test -c`
 *.test
-
-# Output of the go coverage tool
 *.out
 
-# Dependency directories
-vendor/
+# Build and tool outputs
+/adoverseas
+/bin/
+/tmp/
+/.gocache/
 
-# Go workspace files
+# Go workspace overrides
 go.work
 go.work.sum
-.gocache
+/vendor/
 
-# Go module cache
-bin/
-pkg/
-
-# Build artifacts
-dist/
-build/
-tmp/
-public/
-dev/
-/jcdssync
-.env
+# Frontend dependencies and build outputs
+node_modules/
 *.tsbuildinfo
-node_modules
-vite.config.d.ts
 vite.config.js
-.gitignore
-.vite
+vite.config.d.ts
+.vite/
+dist/
+!web/dist/
+web/dist/*
+!web/dist/.gitkeep
+
+# Local mise overrides
+.mise.local.toml
+.mise.local.lock
+
+# Env files
+.env
+.env.*
+!.env.example
+
+# Editor / IDE
+.vscode/
 
 # macOS
 .DS_Store
@@ -49,4 +51,3 @@ vite.config.js
 Network Trash Folder
 Temporary Items
 .apdisk
-

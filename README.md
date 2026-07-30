@@ -14,3 +14,13 @@ curl -X POST http://localhost:3500/schedule \
 ```
 
 ensure to change start_date and end_date accordingly
+
+## Development
+
+Install the pinned toolchain and dependencies, then run the backend and web development servers:
+
+```bash
+mise install
+mise run deps
+mise run dev
+```

@@ -1,5 +1,43 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: ["local>woodleighschool/renovate-config"],
-  postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths"],
+  postUpdateOptions: ["gomodTidy", "gomodUpdateImportPaths", "pnpmDedupe"],
+  packageRules: [
+    {
+      matchManagers: ["npm", "mise"],
+      minimumReleaseAge: "12 hours",
+    },
+    {
+      description: "Keep Go toolchain pins together",
+      matchManagers: ["dockerfile", "gomod", "mise"],
+      matchDepNames: ["go", "golang"],
+      matchFileNames: ["Dockerfile", "go.mod", ".mise/config.toml"],
+      groupName: "Go toolchain",
+      groupSlug: "go-toolchain",
+    },
+    {
+      description: "Keep Node toolchain pins together",
+      matchManagers: ["dockerfile", "mise"],
+      matchDepNames: ["node"],
+      matchFileNames: ["Dockerfile", ".mise/config.toml"],
+      groupName: "Node toolchain",
+      groupSlug: "node-toolchain",
+    },
+    {
+      description: "Keep pnpm pins together",
+      matchManagers: ["mise", "npm"],
+      matchDepNames: ["pnpm"],
+      matchFileNames: [".mise/config.toml", "web/package.json"],
+      groupName: "pnpm",
+      groupSlug: "pnpm",
+    },
+    {
+      description: "Keep React runtime packages together",
+      matchManagers: ["npm"],
+      matchPackageNames: ["react", "react-dom"],
+      matchFileNames: ["web/package.json"],
+      groupName: "React runtime",
+      groupSlug: "react-runtime",
+    },
+  ],
 }

@@ -12,11 +12,12 @@ FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS web
 WORKDIR /workspace/web
 
 # Install dependencies against the lockfile first for layer caching.
-COPY web/package*.json ./
-RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
+RUN npm install --global "$(node --print 'require("./package.json").packageManager')"
+RUN pnpm install --frozen-lockfile
 
 COPY web/ ./
-RUN npm run build
+RUN pnpm build
 
 # ---- Go build -------------------------------------------------------------
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS builder
