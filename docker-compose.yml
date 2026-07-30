@@ -1,29 +1,44 @@
+---
 services:
-  db:
-    image: postgres:16-alpine
+  adoverseas:
+    image: ghcr.io/woodleighschool/adoverseas:rolling
+    # Uncomment below to build local source
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    # pull_policy: build
+    restart: unless-stopped
+    env_file: .env
     environment:
-      POSTGRES_DB: adoverseas
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - adoverseas_data:/var/lib/postgresql/data
+      LISTEN_ADDR: :8080
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: adoverseas
+      DATABASE_USER: adoverseas
+      DATABASE_PASSWORD: adoverseas
+      DATABASE_SSLMODE: disable
     ports:
-      - "5432:5432"
+      - "${ADOVERSEAS_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-  # adoverseas:
-  #   build: .
-  #   ports:
-  #     - "8080:8080"
-  #   environment:
-  #     DATABASE_HOST: db
-  #     DATABASE_PORT: 5432
-  #     DATABASE_NAME: adoverseas
-  #     DATABASE_USER: postgres
-  #     DATABASE_PASSWORD: postgres
-  #   depends_on:
-  #     - db
-  #   env_file:
-  #     - .env
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: adoverseas
+      POSTGRES_PASSWORD: adoverseas
+      POSTGRES_DB: adoverseas
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
 
 volumes:
-  adoverseas_data:
+  postgres-data:
