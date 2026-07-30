@@ -1,10 +1,9 @@
 package httpapi
 
 import (
+	"io/fs"
 	"log/slog"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -63,26 +62,37 @@ func Routes(cfg config.Config, deps Deps) http.Handler {
 	return r
 }
 
-func NewRouter(cfg config.Config, deps Deps) http.Handler {
-	rootHandler := Routes(cfg, deps)
-	if cfg.FrontendDistDir != "" {
-		rootHandler = mountStatic(cfg.FrontendDistDir, rootHandler)
-	}
-	return rootHandler
+func NewRouter(cfg config.Config, deps Deps, frontend fs.FS) http.Handler {
+	return mountStatic(frontend, Routes(cfg, deps))
 }
 
-func mountStatic(distDir string, apiHandler http.Handler) http.Handler {
-	fileServer := http.FileServer(http.Dir(distDir))
+func mountStatic(frontend fs.FS, apiHandler http.Handler) http.Handler {
+	fileServer := http.FileServer(http.FS(frontend))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/schedule/") {
+		if r.URL.Path == "/api" ||
+			strings.HasPrefix(r.URL.Path, "/api/") ||
+			strings.HasPrefix(r.URL.Path, "/schedule/") {
 			apiHandler.ServeHTTP(w, r)
 			return
 		}
 
-		path := filepath.Join(distDir, r.URL.Path)
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			r.URL.Path = "/"
+		name := strings.TrimPrefix(r.URL.Path, "/")
+		if name == "" {
+			name = "index.html"
+		}
+		if _, err := fs.Stat(frontend, name); err != nil {
+			request := r.Clone(r.Context())
+			requestURL := *r.URL
+			requestURL.Path = "/"
+			request.URL = &requestURL
+			r = request
+		}
+
+		if strings.HasPrefix(r.URL.Path, "/assets/") {
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		} else {
+			w.Header().Set("Cache-Control", "no-cache")
 		}
 
 		fileServer.ServeHTTP(w, r)

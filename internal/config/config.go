@@ -40,7 +40,6 @@ type Config struct {
 	GraphClientID        string        `env:"GRAPH_CLIENT_ID"`
 	GraphClientSecret    string        `env:"GRAPH_CLIENT_SECRET"`
 	LogLevel             string        `env:"LOG_LEVEL"                         envDefault:"info"`
-	FrontendDistDir      string        `env:"FRONTEND_DIST_DIR"`
 }
 
 func Load() (Config, error) {

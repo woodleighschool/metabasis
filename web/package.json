@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && touch dist/.gitkeep",
     "gen:icons": "node scripts/gen-icons.js",
     "format": "prettier --write .",
     "lint": "eslint 'src/**/*.{ts,tsx,js,jsx}' --fix"

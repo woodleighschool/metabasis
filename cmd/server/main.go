@@ -16,6 +16,7 @@ import (
 	httpapi "github.com/woodleighschool/adoverseas/internal/http"
 	"github.com/woodleighschool/adoverseas/internal/schedules"
 	"github.com/woodleighschool/adoverseas/internal/store"
+	webdist "github.com/woodleighschool/adoverseas/web"
 )
 
 var (
@@ -130,7 +131,7 @@ func main() {
 		OIDCProvider: oidcProvider,
 		BuildInfo:    buildInfo,
 	}
-	router := httpapi.NewRouter(cfg, deps)
+	router := httpapi.NewRouter(cfg, deps, webdist.DistDirFS)
 
 	server, errCh := startServer(cfg, logger, router)
 
