@@ -46,7 +46,7 @@ func Routes(cfg config.Config, deps Deps) http.Handler {
 	})
 
 	schedule := chi.NewRouter()
-	schedule.Use(ApiAuth(cfg, deps.Logger))
+	schedule.Use(APIAuth(cfg))
 	apischedule.RegisterRoutes(schedule, cfg, deps.Store, deps.Logger)
 	r.Mount("/api/schedule", schedule)
 

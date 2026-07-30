@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"net"
+	"net/url"
 	"time"
 
 	"github.com/caarlos0/env/v11"
@@ -9,7 +11,7 @@ import (
 
 type Config struct {
 	ListenAddr           string        `env:"LISTEN_ADDR"                       envDefault:":8080"`
-	ApiKey               string        `env:"API_KEY,required"`
+	APIKey               string        `env:"API_KEY,required"`
 	TimeLocation         string        `env:"TIME_LOCATION"                     envDefault:"Australia/Melbourne"`
 	DatabaseHost         string        `env:"DATABASE_HOST,required"`
 	DatabasePort         string        `env:"DATABASE_PORT"                     envDefault:"5432"`
@@ -51,8 +53,16 @@ func Load() (Config, error) {
 }
 
 func (c Config) DatabaseURL() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-		c.DatabaseUser, c.DatabasePassword, c.DatabaseHost, c.DatabasePort, c.DatabaseName, c.DatabaseSSLMode)
+	databaseURL := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(c.DatabaseUser, c.DatabasePassword),
+		Host:   net.JoinHostPort(c.DatabaseHost, c.DatabasePort),
+		Path:   c.DatabaseName,
+	}
+	query := databaseURL.Query()
+	query.Set("sslmode", c.DatabaseSSLMode)
+	databaseURL.RawQuery = query.Encode()
+	return databaseURL.String()
 }
 
 func (c Config) Location() (*time.Location, error) {

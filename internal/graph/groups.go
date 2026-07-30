@@ -10,8 +10,8 @@ import (
 
 func (c *Client) AddGroupMember(ctx context.Context, groupID string, userID string) error {
 	requestBody := msgraphmodels.NewReferenceCreate()
-	odataId := "https://graph.microsoft.com/v1.0/directoryObjects/" + userID
-	requestBody.SetOdataId(&odataId)
+	odataID := "https://graph.microsoft.com/v1.0/directoryObjects/" + userID
+	requestBody.SetOdataId(&odataID)
 
 	existingMembers, err := c.getGroupMembers(ctx, groupID)
 	if err != nil {
@@ -31,8 +31,8 @@ func (c *Client) AddGroupMember(ctx context.Context, groupID string, userID stri
 
 func (c *Client) RemoveGroupMember(ctx context.Context, groupID string, userID string) error {
 	requestBody := msgraphmodels.NewReferenceCreate()
-	odataId := "https://graph.microsoft.com/v1.0/directoryObjects/" + userID
-	requestBody.SetOdataId(&odataId)
+	odataID := "https://graph.microsoft.com/v1.0/directoryObjects/" + userID
+	requestBody.SetOdataId(&odataID)
 
 	existingMembers, err := c.getGroupMembers(ctx, groupID)
 	if err != nil {

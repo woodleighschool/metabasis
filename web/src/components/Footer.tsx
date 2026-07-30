@@ -1,7 +1,7 @@
 import GitHubIcon from "@mui/icons-material/GitHub";
 import { Paper, Container, Toolbar, Stack, IconButton, Typography, Button } from "@mui/material";
 
-export interface FooterProps {
+interface FooterProps {
   versionLabel?: string | undefined;
   onOpenCredits: () => void;
 }

@@ -64,7 +64,7 @@ func (h Handler) schedulesRoutes(r chi.Router) {
 func (h Handler) listSchedules(w http.ResponseWriter, r *http.Request) {
 	tasks, err := h.Store.ListScheduleSummaries(r.Context())
 	if err != nil {
-		h.Logger.Error("list tasks", "err", err)
+		h.Logger.ErrorContext(r.Context(), "list tasks", "err", err)
 		utils.RespondError(w, http.StatusInternalServerError, "failed to list tasks")
 		return
 	}
@@ -83,26 +83,26 @@ func (h Handler) insertSchedules(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.Store.GetUserByUPN(r.Context(), body.UPN)
 	if err != nil {
-		h.Logger.Error("retrieve user from api body", "err", err)
+		h.Logger.ErrorContext(r.Context(), "retrieve user from api body", "err", err)
 		utils.RespondError(w, http.StatusBadRequest, "failed to retrieve user from body")
 		return
 	}
 	leavingDate, err := time.ParseInLocation(time.RFC3339Nano, body.LeavingDate, h.TZ)
 	if err != nil {
-		h.Logger.Error("parsing leaving date", "err", err)
+		h.Logger.ErrorContext(r.Context(), "parsing leaving date", "err", err)
 		utils.RespondError(w, http.StatusBadRequest, "unable to parse leaving date")
 		return
 	}
 	returningDate, err := time.ParseInLocation(time.RFC3339Nano, body.ReturningDate, h.TZ)
 	if err != nil {
-		h.Logger.Error("parsing returning date", "err", err)
+		h.Logger.ErrorContext(r.Context(), "parsing returning date", "err", err)
 		utils.RespondError(w, http.StatusBadRequest, "unable to parse returning date")
 		return
 	}
 	if !user.Staff.Bool {
 		_, err := h.Store.InsertUrgentSchedule(r.Context(), user.ID)
 		if err != nil {
-			h.Logger.Error("failed to insert urgent schedule", "err", err)
+			h.Logger.ErrorContext(r.Context(), "failed to insert urgent schedule", "err", err)
 		}
 	}
 	if _, err := h.Store.InsertSchedule(r.Context(), sqlc.InsertScheduleParams{
@@ -111,7 +111,7 @@ func (h Handler) insertSchedules(w http.ResponseWriter, r *http.Request) {
 		ReturningDate: pgtype.Timestamptz{Time: returningDate, Valid: true},
 		LastChangedBy: body.LastUpdatedBy,
 	}); err != nil {
-		h.Logger.Error("insert schedule", "err", err)
+		h.Logger.ErrorContext(r.Context(), "insert schedule", "err", err)
 		utils.RespondError(w, http.StatusInternalServerError, "failed to insert schedule")
 		return
 	}
@@ -121,7 +121,7 @@ func (h Handler) insertSchedules(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) getSchedule(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUIDParam(r, "id")
+	id, err := parseUUIDParam(r)
 	if err != nil {
 		utils.RespondError(w, http.StatusBadRequest, "invalid schedule id")
 		return
@@ -133,7 +133,7 @@ func (h Handler) getSchedule(w http.ResponseWriter, r *http.Request) {
 			utils.RespondError(w, http.StatusNotFound, "schedule not found")
 			return
 		}
-		h.Logger.Error("get schedule", "err", err)
+		h.Logger.ErrorContext(r.Context(), "get schedule", "err", err)
 		utils.RespondError(w, http.StatusInternalServerError, "failed to get schedule")
 		return
 	}
@@ -142,7 +142,7 @@ func (h Handler) getSchedule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) updateSchedule(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUIDParam(r, "id")
+	id, err := parseUUIDParam(r)
 	if err != nil {
 		utils.RespondError(w, http.StatusBadRequest, "invalid schedule id")
 		return
@@ -158,7 +158,7 @@ func (h Handler) updateSchedule(w http.ResponseWriter, r *http.Request) {
 			utils.RespondError(w, http.StatusNotFound, "schedule not found")
 			return
 		}
-		h.Logger.Error("get schedule", "err", err)
+		h.Logger.ErrorContext(r.Context(), "get schedule", "err", err)
 		utils.RespondError(w, http.StatusInternalServerError, "failed to load schedule")
 		return
 	}
@@ -190,11 +190,11 @@ func (h Handler) updateSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	payload.LastChangedBy = body.LastUpdatedBy
 	if err := h.Store.UpdateSchedule(r.Context(), payload); err != nil {
-		h.Logger.Error("update schedule", "err", err)
+		h.Logger.ErrorContext(r.Context(), "update schedule", "err", err)
 		utils.RespondError(w, http.StatusInternalServerError, "failed to update schedule")
 		return
 	}
-	h.Logger.Info(
+	h.Logger.InfoContext(r.Context(),
 		"successfully updated schedule",
 		"user",
 		body.UPN,
@@ -209,13 +209,13 @@ func (h Handler) updateSchedule(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Handler) deleteSchedule(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUIDParam(r, "id")
+	id, err := parseUUIDParam(r)
 	if err != nil {
 		utils.RespondError(w, http.StatusBadRequest, "invalid schedule id")
 		return
 	}
 	if err := h.Store.DeleteSchedule(r.Context(), id); err != nil {
-		h.Logger.Error("delete schedule", "err", err)
+		h.Logger.ErrorContext(r.Context(), "delete schedule", "err", err)
 		utils.RespondError(w, http.StatusInternalServerError, "failed to delete schedule")
 	}
 	w.WriteHeader(http.StatusNoContent)

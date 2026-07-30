@@ -7,6 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-func parseUUIDParam(r *http.Request, key string) (uuid.UUID, error) {
-	return uuid.Parse(chi.URLParam(r, key))
+func parseUUIDParam(r *http.Request) (uuid.UUID, error) {
+	return uuid.Parse(chi.URLParam(r, "id"))
 }

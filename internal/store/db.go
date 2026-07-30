@@ -3,12 +3,10 @@ package store
 import (
 	"context"
 	"embed"
-	"errors"
 	"fmt"
 	"sort"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/woodleighschool/adoverseas/internal/store/sqlc"
@@ -16,8 +14,6 @@ import (
 
 //go:embed migrate/*.sql
 var migrations embed.FS
-
-var ErrNilPool = errors.New("store: nil pol")
 
 type Options struct {
 	URL             string
@@ -57,39 +53,6 @@ func (s *Store) Close() {
 		return
 	}
 	s.pool.Close()
-}
-
-func (s *Store) Ping(ctx context.Context) error {
-	if s.pool == nil {
-		return ErrNilPool
-	}
-	return s.pool.Ping(ctx)
-}
-
-func (s *Store) WithTx(ctx context.Context, fn func(pgx.Tx) error) error {
-	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if tx != nil {
-			if rollbackErr := tx.Rollback(ctx); rollbackErr != nil {
-				_ = rollbackErr
-			}
-		}
-	}()
-	if err := fn(tx); err != nil {
-		return err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
-	tx = nil
-	return nil
-}
-
-func (s *Store) Queries() *sqlc.Queries {
-	return s.queries
 }
 
 func (s *Store) Migrate(ctx context.Context) error {

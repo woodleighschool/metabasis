@@ -8,7 +8,7 @@ import {
   Button,
 } from "@mui/material";
 
-export interface CreditsDialogProps {
+interface CreditsDialogProps {
   open: boolean;
   onClose: () => void;
 }

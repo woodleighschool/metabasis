@@ -40,7 +40,3 @@ func (p *OIDCProvider) Exchange(ctx context.Context, code string) (*oauth2.Token
 func (p *OIDCProvider) VerifyIDToken(ctx context.Context, raw string) (*oidc.IDToken, error) {
 	return p.verifier.Verify(ctx, raw)
 }
-
-func (p *OIDCProvider) OAuth2Config() *oauth2.Config {
-	return p.oauth
-}

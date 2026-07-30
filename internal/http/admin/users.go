@@ -30,7 +30,7 @@ func (h Handler) userRoutes(r chi.Router) {
 }
 
 func (h Handler) getUser(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUIDParam(r, "id")
+	id, err := parseUUIDParam(r)
 	if err != nil {
 		utils.RespondError(w, http.StatusBadRequest, "invalid user id")
 		return
@@ -42,7 +42,7 @@ func (h Handler) getUser(w http.ResponseWriter, r *http.Request) {
 			utils.RespondError(w, http.StatusNotFound, "user not found")
 			return
 		}
-		h.Logger.Error("get user", "err", err)
+		h.Logger.ErrorContext(r.Context(), "get user", "err", err)
 		utils.RespondError(w, http.StatusInternalServerError, "failed to get user")
 		return
 	}
@@ -53,7 +53,7 @@ func (h Handler) getUser(w http.ResponseWriter, r *http.Request) {
 func (h Handler) getUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.Store.GetUsers(r.Context())
 	if err != nil {
-		h.Logger.Error("get users", "err", err)
+		h.Logger.ErrorContext(r.Context(), "get users", "err", err)
 		utils.RespondError(w, http.StatusInternalServerError, "failed to get users")
 		return
 	}
@@ -74,7 +74,7 @@ func mapUser(u sqlc.User) userResponse {
 }
 
 func (h Handler) getUserAsset(w http.ResponseWriter, r *http.Request) {
-	id, err := parseUUIDParam(r, "id")
+	id, err := parseUUIDParam(r)
 	if err != nil {
 		utils.RespondError(w, http.StatusBadRequest, "invalid user id")
 		return
@@ -86,7 +86,7 @@ func (h Handler) getUserAsset(w http.ResponseWriter, r *http.Request) {
 			utils.RespondError(w, http.StatusNotFound, "user asset not found")
 			return
 		}
-		h.Logger.Error("get user asset", "err", err)
+		h.Logger.ErrorContext(r.Context(), "get user asset", "err", err)
 		utils.RespondError(w, http.StatusInternalServerError, "failed to get user asset")
 		return
 	}

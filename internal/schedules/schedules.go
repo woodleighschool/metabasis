@@ -6,87 +6,125 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/woodleighschool/adoverseas/internal/config"
 	"github.com/woodleighschool/adoverseas/internal/graph"
 	"github.com/woodleighschool/adoverseas/internal/store"
 	"github.com/woodleighschool/adoverseas/internal/store/sqlc"
 )
 
-func NewTaskJob(store *store.Store, graphClient *graph.Client, cfg config.Config, logger *slog.Logger) Job {
+func NewTaskJob(store *store.Store, graphClient *graph.Client, logger *slog.Logger) Job {
 	return func(ctx context.Context) error {
 		if store == nil {
 			return fmt.Errorf("db missing")
 		}
-		currentUrgentTasks, err := store.ListUrgentSchedules(ctx)
-		if err != nil {
-			logger.Error("unable to retrieve urgent tasks", "err", err)
-		}
-		if len(currentUrgentTasks) == 0 {
-			logger.Debug("No urgent tasks to action")
-		}
-		for _, task := range currentUrgentTasks {
-			user, err := store.GetUser(ctx, task.Userid)
-			if err != nil {
-				logger.Error("unable to get user from urgent task", "err", err)
-			}
-			if err := enableMFA(ctx, user, graphClient); err != nil {
-				logger.Error("unable to enable MFA for user", "user", user.Upn, "err", err)
-			}
-			if err := store.DeleteUrgentSchedule(ctx, task.ID); err != nil {
-				logger.Error("unable to delete urgent job from store", "task", task.ID, "err", err)
-			}
-			if err == nil {
-				logger.Info("Successfully completed urgent task", "task", task.ID, "user", user.Upn)
-			}
-		}
+		processUrgentTasks(ctx, store, graphClient, logger)
 
 		currentTasks, err := store.ListScheduleSummaries(ctx)
 		if err != nil {
 			return fmt.Errorf("list tasks: %w", err)
 		}
 		if len(currentTasks) == 0 {
-			logger.Debug("No tasks to action")
+			logger.DebugContext(ctx, "No tasks to action")
 			return nil
 		}
 		currentTime := time.Now()
 		for _, task := range currentTasks {
-			if task.Overseas && task.ReturningDate.Time.Before(currentTime) {
-				user, err := store.GetUser(ctx, task.Userid)
-				if err != nil {
-					logger.Error("unable to find user from task", "err", err, "task", task.ID.String())
-					return fmt.Errorf("%w", err)
-				}
-				if err := userReturning(ctx, user, graphClient); err != nil {
-					logger.Error("unable to execute returning user", "err", err, "task", task.ID.String())
-					return fmt.Errorf("%w", err)
-				}
-				if err := store.DeleteSchedule(ctx, task.ID); err != nil {
-					logger.Error("failed to remove leftover task", "err", err, "task", task.ID.String())
-					return fmt.Errorf("%w", err)
-				}
-				logger.Info("successfully completed returning task", "task", task.ID.String(), "user", user.Upn)
-				continue
-			} else if !task.Overseas && task.LeavingDate.Time.Before(currentTime) {
-				user, err := store.GetUser(ctx, task.Userid)
-				if err != nil {
-					logger.Error("unable to find user from task", "err", err, "task", task.ID.String())
-					return fmt.Errorf("%w", err)
-				}
-				if err := userLeaving(ctx, user, graphClient); err != nil {
-					logger.Error("unable to execute leaving user", "err", err, "task", task.ID.String())
-					return fmt.Errorf("%w", err)
-				}
-				if err := store.FlipSchedule(ctx, task.ID); err != nil {
-					logger.Error("failed to update overseas flag on task", "err", err, "task", task.ID.String())
-					return fmt.Errorf("%w", err)
-				}
-				logger.Info("successfully completed leaving task", "task", task.ID.String(), "user", user.Upn)
-				continue
+			if err := processScheduledTask(ctx, store, graphClient, logger, task, currentTime); err != nil {
+				return err
 			}
 		}
-		logger.Debug("All tasks actioned")
+		logger.DebugContext(ctx, "All tasks actioned")
 		return nil
 	}
+}
+
+func processUrgentTasks(ctx context.Context, store *store.Store, graphClient *graph.Client, logger *slog.Logger) {
+	tasks, err := store.ListUrgentSchedules(ctx)
+	if err != nil {
+		logger.ErrorContext(ctx, "unable to retrieve urgent tasks", "err", err)
+	}
+	if len(tasks) == 0 {
+		logger.DebugContext(ctx, "No urgent tasks to action")
+	}
+	for _, task := range tasks {
+		user, err := store.GetUser(ctx, task.Userid)
+		if err != nil {
+			logger.ErrorContext(ctx, "unable to get user from urgent task", "err", err)
+		}
+		if err := enableMFA(ctx, user, graphClient); err != nil {
+			logger.ErrorContext(ctx, "unable to enable MFA for user", "user", user.Upn, "err", err)
+		}
+		if err := store.DeleteUrgentSchedule(ctx, task.ID); err != nil {
+			logger.ErrorContext(ctx, "unable to delete urgent job from store", "task", task.ID, "err", err)
+		}
+		if err == nil {
+			logger.InfoContext(ctx, "Successfully completed urgent task", "task", task.ID, "user", user.Upn)
+		}
+	}
+}
+
+func processScheduledTask(
+	ctx context.Context,
+	store *store.Store,
+	graphClient *graph.Client,
+	logger *slog.Logger,
+	task sqlc.ListScheduleSummariesRow,
+	currentTime time.Time,
+) error {
+	if task.Overseas && task.ReturningDate.Time.Before(currentTime) {
+		return processReturningTask(ctx, store, graphClient, logger, task)
+	}
+	if !task.Overseas && task.LeavingDate.Time.Before(currentTime) {
+		return processLeavingTask(ctx, store, graphClient, logger, task)
+	}
+	return nil
+}
+
+func processReturningTask( //nolint:dupl // Returning and leaving tasks keep their distinct graph and store operations explicit.
+	ctx context.Context,
+	store *store.Store,
+	graphClient *graph.Client,
+	logger *slog.Logger,
+	task sqlc.ListScheduleSummariesRow,
+) error {
+	user, err := store.GetUser(ctx, task.Userid)
+	if err != nil {
+		logger.ErrorContext(ctx, "unable to find user from task", "err", err, "task", task.ID.String())
+		return fmt.Errorf("%w", err)
+	}
+	if err := userReturning(ctx, user, graphClient); err != nil {
+		logger.ErrorContext(ctx, "unable to execute returning user", "err", err, "task", task.ID.String())
+		return fmt.Errorf("%w", err)
+	}
+	if err := store.DeleteSchedule(ctx, task.ID); err != nil {
+		logger.ErrorContext(ctx, "failed to remove leftover task", "err", err, "task", task.ID.String())
+		return fmt.Errorf("%w", err)
+	}
+	logger.InfoContext(ctx, "successfully completed returning task", "task", task.ID.String(), "user", user.Upn)
+	return nil
+}
+
+func processLeavingTask( //nolint:dupl // Returning and leaving tasks keep their distinct graph and store operations explicit.
+	ctx context.Context,
+	store *store.Store,
+	graphClient *graph.Client,
+	logger *slog.Logger,
+	task sqlc.ListScheduleSummariesRow,
+) error {
+	user, err := store.GetUser(ctx, task.Userid)
+	if err != nil {
+		logger.ErrorContext(ctx, "unable to find user from task", "err", err, "task", task.ID.String())
+		return fmt.Errorf("%w", err)
+	}
+	if err := userLeaving(ctx, user, graphClient); err != nil {
+		logger.ErrorContext(ctx, "unable to execute leaving user", "err", err, "task", task.ID.String())
+		return fmt.Errorf("%w", err)
+	}
+	if err := store.FlipSchedule(ctx, task.ID); err != nil {
+		logger.ErrorContext(ctx, "failed to update overseas flag on task", "err", err, "task", task.ID.String())
+		return fmt.Errorf("%w", err)
+	}
+	logger.InfoContext(ctx, "successfully completed leaving task", "task", task.ID.String(), "user", user.Upn)
+	return nil
 }
 
 func userLeaving(ctx context.Context, user sqlc.User, graphClient *graph.Client) error {

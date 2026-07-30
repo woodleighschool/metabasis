@@ -1,7 +1,6 @@
 package graph
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
@@ -25,7 +24,6 @@ type GroupConfig struct {
 }
 
 func NewClient(
-	ctx context.Context,
 	tenantID, clientID, clientSecret string,
 	awayGroups []string,
 	homeGroups []string,

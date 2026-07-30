@@ -46,20 +46,13 @@ const userSchema = z.object({
   staff: z.boolean(),
 });
 
-export type BuildInfo = z.infer<typeof buildInfoSchema>;
 export type AppStatusResponse = z.infer<typeof appStatusResponseSchema>;
 export type AuthProviders = z.infer<typeof authProvidersSchema>;
 export type ApiUser = z.infer<typeof apiUserSchema>;
-export type ApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;
 export type Schedule = z.infer<typeof scheduleSchema>;
 export type User = z.infer<typeof userSchema>;
 
-export interface ValidationSuccess<T> {
-  valid: true;
-  normalised: T;
-}
-
-export class ApiValidationError extends Error {
+class ApiValidationError extends Error {
   public code: string;
   public fieldErrors: Record<string, string>;
   public status: number;

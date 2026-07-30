@@ -113,7 +113,6 @@ func (c *Client) fetchUserPhoto(ctx context.Context, user msgraphmodels.Userable
 
 	if err != nil || photoData == nil {
 		return nil
-	} else {
-		return photoData
 	}
+	return photoData
 }

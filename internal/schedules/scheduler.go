@@ -36,10 +36,6 @@ func (s *Scheduler) Add(spec, name string, job Job) error {
 	return err
 }
 
-func (s *Scheduler) Run() {
-	s.cron.Run()
-}
-
 func (s *Scheduler) Start() {
 	s.cron.Start()
 }

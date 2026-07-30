@@ -27,52 +27,62 @@ func NewUserJob(store *store.Store, graphClient *graph.Client, logger *slog.Logg
 		if err != nil {
 			return fmt.Errorf("fetch users: %w", err)
 		}
-		for _, u := range users {
-			if u.UPN == "" {
-				continue
-			}
-			userID, hasObjectID := parseDirectoryUserID(u.ObjectID)
-			if shouldSkipUser(u) {
-				if err := deleteDirectoryUser(ctx, store, userID, hasObjectID, u.UPN); err != nil {
-					logger.Error("delete user", "upn", u.UPN, "err", err)
-				}
-				continue
-			}
-
-			staff := slices.Contains(cfg.StaffDepartment, u.Department)
-
-			if !hasObjectID {
-				existing, err := store.GetUserByUPN(ctx, u.UPN)
-				if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-					logger.Error("lookup user by UPN", "upn", u.UPN, "err", err)
-					continue
-				}
-				if err == nil {
-					userID = existing.ID
-				} else {
-					userID = uuid.New()
-				}
-			}
-			if _, err := store.UpsertUser(ctx, sqlc.UpsertUserParams{
-				ID:          userID,
-				Upn:         u.UPN,
-				DisplayName: u.DisplayName,
-				Staff:       pgtype.Bool{Bool: staff, Valid: true},
-			}); err != nil {
-				logger.Error("upsert user", "upn", u.UPN, "err", err)
-			}
-
-			if u.Photo != nil {
-				if _, err := store.UpsertUserAsset(ctx, sqlc.UpsertUserAssetParams{
-					Userid:      userID,
-					ContentType: "image/jpeg",
-					Data:        u.Photo,
-				}); err != nil {
-					logger.Error("upsert user asset", "upn", u.UPN, "err", err)
-				}
-			}
+		for _, user := range users {
+			syncDirectoryUser(ctx, store, logger, cfg, user)
 		}
 		return nil
+	}
+}
+
+func syncDirectoryUser(
+	ctx context.Context,
+	store *store.Store,
+	logger *slog.Logger,
+	cfg config.Config,
+	user graph.DirectoryUser,
+) {
+	if user.UPN == "" {
+		return
+	}
+	userID, hasObjectID := parseDirectoryUserID(user.ObjectID)
+	if shouldSkipUser(user) {
+		if err := deleteDirectoryUser(ctx, store, userID, hasObjectID, user.UPN); err != nil {
+			logger.ErrorContext(ctx, "delete user", "upn", user.UPN, "err", err)
+		}
+		return
+	}
+
+	staff := slices.Contains(cfg.StaffDepartment, user.Department)
+
+	if !hasObjectID {
+		existing, err := store.GetUserByUPN(ctx, user.UPN)
+		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			logger.ErrorContext(ctx, "lookup user by UPN", "upn", user.UPN, "err", err)
+			return
+		}
+		if err == nil {
+			userID = existing.ID
+		} else {
+			userID = uuid.New()
+		}
+	}
+	if _, err := store.UpsertUser(ctx, sqlc.UpsertUserParams{
+		ID:          userID,
+		Upn:         user.UPN,
+		DisplayName: user.DisplayName,
+		Staff:       pgtype.Bool{Bool: staff, Valid: true},
+	}); err != nil {
+		logger.ErrorContext(ctx, "upsert user", "upn", user.UPN, "err", err)
+	}
+
+	if user.Photo != nil {
+		if _, err := store.UpsertUserAsset(ctx, sqlc.UpsertUserAssetParams{
+			Userid:      userID,
+			ContentType: "image/jpeg",
+			Data:        user.Photo,
+		}); err != nil {
+			logger.ErrorContext(ctx, "upsert user asset", "upn", user.UPN, "err", err)
+		}
 	}
 }
 

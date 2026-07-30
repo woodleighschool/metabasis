@@ -90,39 +90,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	scheduler := schedules.NewScheduler(logger)
-	graphClient, err := graph.NewClient(
-		ctx,
-		cfg.GraphTenantID,
-		cfg.GraphClientID,
-		cfg.GraphClientSecret,
-		cfg.AwayGroups,
-		cfg.HomeGroups,
-		cfg.EnableMFAGroup,
-		cfg.ForceMFAGroup,
-	)
-	if err != nil {
-		logger.Warn("graph client", "err", err)
-	}
-	if graphClient != nil && graphClient.Enabled() {
-		if err := scheduler.Add(
-			"@every 5m",
-			"entra-users",
-			schedules.NewUserJob(db, graphClient, logger, cfg),
-		); err != nil {
-			logger.Warn("schedule users", "err", err)
-		}
-	}
-
-	if err := scheduler.Add(
-		"@every 1m",
-		"task-checker",
-		schedules.NewTaskJob(db, graphClient, cfg, logger),
-	); err != nil {
-		logger.Error("task checker", "err", err)
-	}
-
-	scheduler.Start()
+	scheduler := startScheduler(ctx, cfg, db, logger)
 
 	deps := httpapi.Deps{
 		Store:        db,
@@ -159,6 +127,42 @@ func main() {
 	scheduler.Stop()
 	db.Close()
 	stop()
+}
+
+func startScheduler(ctx context.Context, cfg config.Config, db *store.Store, logger *slog.Logger) *schedules.Scheduler {
+	scheduler := schedules.NewScheduler(logger)
+	graphClient, err := graph.NewClient(
+		cfg.GraphTenantID,
+		cfg.GraphClientID,
+		cfg.GraphClientSecret,
+		cfg.AwayGroups,
+		cfg.HomeGroups,
+		cfg.EnableMFAGroup,
+		cfg.ForceMFAGroup,
+	)
+	if err != nil {
+		logger.WarnContext(ctx, "graph client", "err", err)
+	}
+	if graphClient != nil && graphClient.Enabled() {
+		if err := scheduler.Add(
+			"@every 5m",
+			"entra-users",
+			schedules.NewUserJob(db, graphClient, logger, cfg),
+		); err != nil {
+			logger.WarnContext(ctx, "schedule users", "err", err)
+		}
+	}
+
+	if err := scheduler.Add(
+		"@every 1m",
+		"task-checker",
+		schedules.NewTaskJob(db, graphClient, logger),
+	); err != nil {
+		logger.ErrorContext(ctx, "task checker", "err", err)
+	}
+
+	scheduler.Start()
+	return scheduler
 }
 
 func newLogger(level string) *slog.Logger {

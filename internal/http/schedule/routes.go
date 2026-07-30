@@ -52,26 +52,26 @@ func (h Handler) insertSchedule(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.Store.GetUserByUPN(r.Context(), body.Email)
 	if err != nil {
-		h.Logger.Error("retrieve user from api body", "err", err)
+		h.Logger.ErrorContext(r.Context(), "retrieve user from api body", "err", err)
 		utils.RespondError(w, http.StatusBadRequest, "failed to retrieve user from body")
 		return
 	}
 	leavingDate, err := time.ParseInLocation(time.RFC3339Nano, body.LeavingDate, h.TZ)
 	if err != nil {
-		h.Logger.Error("parsing leaving date", "err", err)
+		h.Logger.ErrorContext(r.Context(), "parsing leaving date", "err", err)
 		utils.RespondError(w, http.StatusBadRequest, "unable to parse leaving date")
 		return
 	}
 	returningDate, err := time.ParseInLocation(time.RFC3339Nano, body.ReturningDate, h.TZ)
 	if err != nil {
-		h.Logger.Error("parsing returning date", "err", err)
+		h.Logger.ErrorContext(r.Context(), "parsing returning date", "err", err)
 		utils.RespondError(w, http.StatusBadRequest, "unable to parse returning date")
 		return
 	}
 	if !user.Staff.Bool {
 		_, err := h.Store.InsertUrgentSchedule(r.Context(), user.ID)
 		if err != nil {
-			h.Logger.Error("failed to insert urgent schedule", "err", err)
+			h.Logger.ErrorContext(r.Context(), "failed to insert urgent schedule", "err", err)
 		}
 	}
 	if _, err := h.Store.InsertSchedule(r.Context(), sqlc.InsertScheduleParams{
@@ -79,11 +79,11 @@ func (h Handler) insertSchedule(w http.ResponseWriter, r *http.Request) {
 		LeavingDate:   pgtype.Timestamptz{Time: leavingDate, Valid: true},
 		ReturningDate: pgtype.Timestamptz{Time: returningDate, Valid: true},
 	}); err != nil {
-		h.Logger.Error("insert schedule", "err", err)
+		h.Logger.ErrorContext(r.Context(), "insert schedule", "err", err)
 		utils.RespondError(w, http.StatusInternalServerError, "failed to insert schedule")
 		return
 	}
-	h.Logger.Info("new schedule added", "user", user.Upn, "leaving_date", leavingDate, "returning_date", returningDate)
+	h.Logger.InfoContext(r.Context(), "new schedule added", "user", user.Upn, "leaving_date", leavingDate, "returning_date", returningDate)
 	utils.RespondJSON(w, http.StatusAccepted, map[string]any{
 		"status":         "success",
 		"user":           user.Upn,

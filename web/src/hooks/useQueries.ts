@@ -15,7 +15,7 @@ import {
   type UpdateScheduleRecord,
 } from "../api";
 
-export const queryKeys = {
+const queryKeys = {
   user: (id: string) => ["users", id] as const,
   userPhoto: (id: string) => ["users", id, "photo"] as const,
   users: ["users"] as const,

@@ -2,12 +2,12 @@ import { Breadcrumbs, Link, Stack, Typography, Box } from "@mui/material";
 import type { ReactNode } from "react";
 import { Link as RouterLink } from "react-router-dom";
 
-export interface PageBreadcrumb {
+interface PageBreadcrumb {
   label: string;
   to?: string;
 }
 
-export interface PageHeaderProps {
+interface PageHeaderProps {
   title: string;
   subtitle?: string | undefined;
   breadcrumbs?: PageBreadcrumb[];

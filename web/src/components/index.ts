@@ -1,11 +1,5 @@
-export { ErrorBoundary } from "./ErrorBoundary";
 export { EmptyState } from "./EmptyState";
 export { PageHeader } from "./PageHeader";
-export type { PageHeaderProps, PageBreadcrumb } from "./PageHeader";
 export { Footer } from "./Footer";
-export type { FooterProps } from "./Footer";
 export { CreditsDialog } from "./CreditsDialog";
-export type { CreditsDialogProps } from "./CreditsDialog";
-export { SectionCard } from "./SectionCard";
-export type { SectionCardProps } from "./SectionCard";
 export { Navbar } from "./Navbar";

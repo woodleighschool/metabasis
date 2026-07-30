@@ -57,7 +57,7 @@ func (m *SessionManager) Issue(w http.ResponseWriter, session Session) error {
 		return err
 	}
 	token := m.sign(payload)
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure follows the configured site scheme so local HTTP development remains usable.
 		Name:     m.name,
 		Value:    token,
 		Path:     "/",
@@ -70,7 +70,7 @@ func (m *SessionManager) Issue(w http.ResponseWriter, session Session) error {
 }
 
 func (m *SessionManager) Clear(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure follows the configured site scheme so local HTTP development remains usable.
 		Name:     m.name,
 		Value:    "",
 		Path:     "/",
@@ -78,6 +78,7 @@ func (m *SessionManager) Clear(w http.ResponseWriter) {
 		MaxAge:   -1,
 		Secure:   m.secure,
 		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
 	})
 }
 

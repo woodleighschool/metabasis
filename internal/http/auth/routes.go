@@ -129,7 +129,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	token, err := h.provider.Exchange(ctx, code)
 	if err != nil {
-		h.logger.Error("oidc exchange failed", "err", err)
+		h.logger.ErrorContext(r.Context(), "oidc exchange failed", "err", err)
 		http.Error(w, "oidc exchange failed", http.StatusBadRequest)
 		return
 	}
@@ -140,7 +140,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	idToken, err := h.provider.VerifyIDToken(ctx, rawIDToken)
 	if err != nil {
-		h.logger.Error("verify id token", "err", err)
+		h.logger.ErrorContext(r.Context(), "verify id token", "err", err)
 		http.Error(w, "invalid id token", http.StatusBadRequest)
 		return
 	}
@@ -150,7 +150,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	claims := map[string]any{}
 	if err := idToken.Claims(&claims); err != nil {
-		h.logger.Error("decode claims", "err", err)
+		h.logger.ErrorContext(r.Context(), "decode claims", "err", err)
 		http.Error(w, "invalid claims", http.StatusBadRequest)
 		return
 	}
@@ -159,7 +159,7 @@ func (h *Handler) callback(w http.ResponseWriter, r *http.Request) {
 		Claims:  sanitiseClaims(claims),
 	}
 	if err := h.sessions.Issue(w, session); err != nil {
-		h.logger.Error("issue session", "err", err)
+		h.logger.ErrorContext(r.Context(), "issue session", "err", err)
 		http.Error(w, "failed to issue session", http.StatusInternalServerError)
 		return
 	}
@@ -195,7 +195,7 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) providers(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) providers(w http.ResponseWriter, _ *http.Request) {
 	providers := map[string]bool{
 		"oauth": h.provider != nil,
 		"local": h.initialAdminPassword != "",
@@ -237,14 +237,14 @@ func (h *Handler) localLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.sessions.Issue(w, session); err != nil {
-		h.logger.Error("issue session for local admin", "err", err)
+		h.logger.ErrorContext(r.Context(), "issue session for local admin", "err", err)
 		http.Error(w, "failed to create session", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(map[string]string{"display_name": "Master Claus"}); err != nil {
-		h.logger.Error("encode local login response", "err", err)
+		h.logger.ErrorContext(r.Context(), "encode local login response", "err", err)
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
@@ -256,7 +256,7 @@ func (h *Handler) setStateCookie(w http.ResponseWriter, st oidcState) error {
 		return err
 	}
 	value := base64.RawURLEncoding.EncodeToString(payload)
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure follows the configured site scheme so local HTTP development remains usable.
 		Name:     h.stateCookie,
 		Value:    value,
 		Path:     "/api/auth",
@@ -288,7 +288,7 @@ func (h *Handler) readStateCookie(r *http.Request) (oidcState, error) {
 }
 
 func (h *Handler) clearStateCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(w, &http.Cookie{ //nolint:gosec // Secure follows the configured site scheme so local HTTP development remains usable.
 		Name:     h.stateCookie,
 		Value:    "",
 		Path:     "/api/auth",
