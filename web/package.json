@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build && touch dist/.gitkeep",
     "preview": "vite preview",
     "lint": "oxlint . && tsc -b",
+    "lint:fix": "oxlint --fix . && tsc -b",
     "typecheck": "tsc -b",
     "format": "oxfmt"
   },

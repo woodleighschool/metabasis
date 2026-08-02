@@ -21,6 +21,11 @@ description = "Run web lint and typecheck"
 depends = [":deps"]
 run = "pnpm run lint"
 
+[tasks.lint-fix]
+description = "Run web lint fixes and typecheck"
+depends = [":deps"]
+run = "pnpm run lint:fix"
+
 [tasks.typecheck]
 description = "Run web typecheck"
 depends = [":deps"]

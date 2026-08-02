@@ -2,7 +2,7 @@ monorepo_root = true
 
 [tools]
 go = "1.26.5"
-node = "26.5.0"
+node = "26.5.1"
 pnpm = "11.18.0"
 golangci-lint = "2.12.2"
 lefthook = "2.1.10"
@@ -68,6 +68,10 @@ run = "golangci-lint run"
 [tasks.go-lint-fix]
 description = "Run Go linters and apply fixes"
 run = "golangci-lint run --fix"
+
+[tasks.lint-fix]
+description = "Run backend and web linters and apply fixes"
+depends = ["go-lint-fix", "//web:lint-fix"]
 
 [tasks.lint]
 description = "Run backend and web linters"
