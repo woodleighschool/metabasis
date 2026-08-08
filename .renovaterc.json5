@@ -7,5 +7,26 @@
       matchManagers: ["npm", "mise"],
       minimumReleaseAge: "12 hours",
     },
+    {
+      description: "Go Toolchain Group",
+      matchManagers: ["dockerfile", "gomod", "mise"],
+      matchDepNames: ["go", "golang"],
+      matchFileNames: ["Dockerfile", "go.mod", ".mise/config.toml"],
+      minimumGroupSize: 3,
+    },
+    {
+      description: "Node Toolchain Group",
+      matchManagers: ["dockerfile", "mise"],
+      matchDepNames: ["node"],
+      matchFileNames: ["Dockerfile", ".mise/config.toml"],
+      minimumGroupSize: 2,
+    },
+    {
+      description: "pnpm Group",
+      matchManagers: ["mise", "npm"],
+      matchDepNames: ["pnpm"],
+      matchFileNames: [".mise/config.toml", "web/package.json"],
+      minimumGroupSize: 2,
+    },
   ],
 }
