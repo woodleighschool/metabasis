@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.5.1](https://github.com/woodleighschool/ADOverseas/compare/2.5.0...2.5.1) (2026-08-10)
+
+
+### Bug Fixes
+
+* **ci:** disable automatic mise installs ([465682e](https://github.com/woodleighschool/ADOverseas/commit/465682ec7621d2f3fb6d6cfde2dbdc7628f2114b))
+* **deps:** update dependency @vitejs/plugin-react (6.0.4 → 6.0.5) ([#83](https://github.com/woodleighschool/ADOverseas/issues/83)) ([3d456c8](https://github.com/woodleighschool/ADOverseas/commit/3d456c8a51fe5c3ea6239f4bd9f27920ebcea78a))
+* **renovate:** wait for complete toolchain groups ([79fb7e2](https://github.com/woodleighschool/ADOverseas/commit/79fb7e258954bbfde76cdda6b6ab45bfe7414e97))
+
 ## [2.5.0](https://github.com/woodleighschool/ADOverseas/compare/2.4.6...2.5.0) (2026-07-30)
 
 
