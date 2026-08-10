@@ -24,7 +24,7 @@ func NewScheduler(logger *slog.Logger) *Scheduler {
 
 func (s *Scheduler) Add(spec, name string, job Job) error {
 	_, err := s.cron.AddFunc(spec, func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Hour)
 		defer cancel()
 		if err := job(ctx); err != nil {
 			s.logger.Error("job failed", "job", name, "err", err)

@@ -145,7 +145,7 @@ func startScheduler(ctx context.Context, cfg config.Config, db *store.Store, log
 	}
 	if graphClient != nil && graphClient.Enabled() {
 		if err := scheduler.Add(
-			"@every 5m",
+			"@every 1h",
 			"entra-users",
 			schedules.NewUserJob(db, graphClient, logger, cfg),
 		); err != nil {
