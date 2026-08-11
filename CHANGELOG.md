@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.2](https://github.com/woodleighschool/ADOverseas/compare/2.5.1...2.5.2) (2026-08-11)
+
+
+### Bug Fixes
+
+* **graph:** changed the group membership behaviour so it doesn't run into pagination issues ([c0f6cbb](https://github.com/woodleighschool/ADOverseas/commit/c0f6cbbb9e8a02cd92d1e643a658cd60a609cc6c))
+
 ## [2.5.1](https://github.com/woodleighschool/ADOverseas/compare/2.5.0...2.5.1) (2026-08-10)
 
 
