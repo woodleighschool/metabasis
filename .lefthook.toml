@@ -9,5 +9,8 @@ root = "web/"
 run = "oxfmt {staged_files}"
 stage_fixed = true
 
+[pre-commit.commands.format-yaml]
+exclude = ["**/pnpm-lock.yaml"]
+
 [commit-msg.commands.commitlint]
 run = "commitlint --default-config --edit {1}"
