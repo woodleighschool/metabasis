@@ -17,12 +17,12 @@ type DirectoryUser struct {
 	Active      bool
 }
 
-func (c *Client) FetchUserObjectID(ctx context.Context, userID string) (string, error) {
+func (c *Client) FetchUser(ctx context.Context, userID string) (DirectoryUser, error) {
 	if !c.enabled {
-		return "", ErrNotConfigured
+		return DirectoryUser{}, ErrNotConfigured
 	}
 	if c.graph == nil {
-		return "", fmt.Errorf("graph client missing")
+		return DirectoryUser{}, fmt.Errorf("graph client missing")
 	}
 	builder := c.graph.Users()
 	selectFields := []string{
@@ -39,9 +39,23 @@ func (c *Client) FetchUserObjectID(ctx context.Context, userID string) (string, 
 		},
 	})
 	if err != nil {
-		return "", fmt.Errorf("get user object id: %w", err)
+		return DirectoryUser{}, fmt.Errorf("get user object id: %w", err)
 	}
-	return deref(resp.GetId()), nil
+
+	active := true
+	if enabled := resp.GetAccountEnabled(); enabled != nil {
+		active = *enabled
+	}
+
+	user := DirectoryUser{
+		ObjectID:    deref(resp.GetId()),
+		UPN:         deref(resp.GetUserPrincipalName()),
+		DisplayName: deref(resp.GetDisplayName()),
+		Department:  deref(resp.GetDepartment()),
+		Photo:       nil,
+		Active:      active,
+	}
+	return user, nil
 }
 
 func (c *Client) FetchUsers(ctx context.Context) ([]DirectoryUser, error) {

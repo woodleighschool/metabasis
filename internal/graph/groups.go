@@ -3,22 +3,23 @@ package graph
 import (
 	"context"
 	"fmt"
-	"slices"
 
+	abstractions "github.com/microsoft/kiota-abstractions-go"
+	msgraphgroups "github.com/microsoftgraph/msgraph-sdk-go/groups"
 	msgraphmodels "github.com/microsoftgraph/msgraph-sdk-go/models"
 )
 
-func (c *Client) AddGroupMember(ctx context.Context, groupID string, userID string) error {
+func (c *Client) AddGroupMember(ctx context.Context, groupID string, user DirectoryUser) error {
 	requestBody := msgraphmodels.NewReferenceCreate()
-	odataID := "https://graph.microsoft.com/v1.0/directoryObjects/" + userID
+	odataID := "https://graph.microsoft.com/v1.0/directoryObjects/" + user.ObjectID
 	requestBody.SetOdataId(&odataID)
 
-	existingMembers, err := c.getGroupMembers(ctx, groupID)
+	isMember, err := c.isGroupMember(ctx, groupID, user)
 	if err != nil {
-		return fmt.Errorf("unable to get existing members: %w", err)
+		return fmt.Errorf("unable to check current group membership: %w", err)
 	}
 
-	if slices.Contains(existingMembers, userID) {
+	if isMember {
 		return nil
 	}
 
@@ -29,35 +30,52 @@ func (c *Client) AddGroupMember(ctx context.Context, groupID string, userID stri
 	return nil
 }
 
-func (c *Client) RemoveGroupMember(ctx context.Context, groupID string, userID string) error {
+func (c *Client) RemoveGroupMember(ctx context.Context, groupID string, user DirectoryUser) error {
 	requestBody := msgraphmodels.NewReferenceCreate()
-	odataID := "https://graph.microsoft.com/v1.0/directoryObjects/" + userID
+	odataID := "https://graph.microsoft.com/v1.0/directoryObjects/" + user.ObjectID
 	requestBody.SetOdataId(&odataID)
 
-	existingMembers, err := c.getGroupMembers(ctx, groupID)
+	isMember, err := c.isGroupMember(ctx, groupID, user)
 	if err != nil {
-		return fmt.Errorf("unable to get existing members: %w", err)
+		return fmt.Errorf("unable to check current group membership: %w", err)
 	}
 
-	if !slices.Contains(existingMembers, userID) {
+	if !isMember {
 		return nil
 	}
 
-	err = c.graph.Groups().ByGroupId(groupID).Members().ByDirectoryObjectId(userID).Ref().Delete(ctx, nil)
+	err = c.graph.Groups().ByGroupId(groupID).Members().ByDirectoryObjectId(user.ObjectID).Ref().Delete(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("remove group member: %w", err)
 	}
 	return nil
 }
 
-func (c *Client) getGroupMembers(ctx context.Context, groupID string) ([]string, error) {
-	var members []string
-	resp, err := c.graph.Groups().ByGroupId(groupID).TransitiveMembers().Get(ctx, nil)
+func (c *Client) isGroupMember(ctx context.Context, groupID string, user DirectoryUser) (bool, error) {
+	headers := abstractions.NewRequestHeaders()
+	headers.Add("ConsistencyLevel", "eventual")
+
+	requestSearch := fmt.Sprintf("\"displayName:%s\"", user.DisplayName)
+
+	parameters := &msgraphgroups.ItemTransitiveMembersRequestBuilderGetQueryParameters{
+		Select: []string{"id"},
+		Search: &requestSearch,
+	}
+	configuration := &msgraphgroups.ItemTransitiveMembersRequestBuilderGetRequestConfiguration{
+		Headers:         headers,
+		QueryParameters: parameters,
+	}
+	resp, err := c.graph.Groups().ByGroupId(groupID).TransitiveMembers().Get(ctx, configuration)
 	if err != nil {
-		return nil, fmt.Errorf("unable to get existing members: %w", err)
+		return false, fmt.Errorf("unable to get existing members: %w", err)
 	}
-	for _, member := range resp.GetValue() {
-		members = append(members, deref(member.GetId()))
+	data := resp.GetValue()
+	switch len(data) {
+	case 0:
+		return false, nil
+	case 1:
+		return true, nil
+	default:
+		return false, fmt.Errorf("more than one user returned for object id")
 	}
-	return members, nil
 }

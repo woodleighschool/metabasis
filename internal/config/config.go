@@ -23,24 +23,20 @@ type Config struct {
 	MaxConnections       int32         `env:"DB_MAX_CONNECTIONS"                envDefault:"10"`
 	MinConnections       int32         `env:"DB_MIN_CONNECTIONS"                envDefault:"2"`
 	StaffDepartment      []string      `env:"STAFF_DEPARTMENT,required"`
-	ADHost               string        `env:"AD_HOST,required"`
-	ADBase               string        `env:"AD_BASE,required"`
-	ADAdminDN            string        `env:"AD_ADMIN_DN,required"`
-	ADAdminPassword      string        `env:"AD_ADMIN_PASSWORD,required"`
 	AwayGroups           []string      `env:"AWAY_GROUPS,required"`
 	HomeGroups           []string      `env:"HOME_GROUPS,required"`
 	EnableMFAGroup       string        `env:"ENABLE_MFA_GROUP"`
 	ForceMFAGroup        string        `env:"FORCE_MFA_GROUP"`
-	AdminIssuer          string        `env:"ADMIN_OIDC_ISSUER,required"`
-	AdminClientID        string        `env:"ADMIN_OIDC_CLIENT_ID,required"`
-	AdminClientSecret    string        `env:"ADMIN_OIDC_CLIENT_SECRET,required"`
+	AdminIssuer          string        `env:"ADMIN_OIDC_ISSUER"`
+	AdminClientID        string        `env:"ADMIN_OIDC_CLIENT_ID"`
+	AdminClientSecret    string        `env:"ADMIN_OIDC_CLIENT_SECRET"`
 	SessionSecret        string        `env:"SESSION_SECRET,required"`
 	SessionCookieName    string        `env:"SESSION_COOKIE_NAME"               envDefault:"grinch_session"`
 	InitialAdminPassword string        `env:"INITIAL_ADMIN_PASSWORD"`
 	SiteBaseURL          string        `env:"SITE_BASE_URL,required"`
-	GraphTenantID        string        `env:"GRAPH_TENANT_ID"`
-	GraphClientID        string        `env:"GRAPH_CLIENT_ID"`
-	GraphClientSecret    string        `env:"GRAPH_CLIENT_SECRET"`
+	GraphTenantID        string        `env:"GRAPH_TENANT_ID,required"`
+	GraphClientID        string        `env:"GRAPH_CLIENT_ID,required"`
+	GraphClientSecret    string        `env:"GRAPH_CLIENT_SECRET,required"`
 	LogLevel             string        `env:"LOG_LEVEL"                         envDefault:"info"`
 }
 

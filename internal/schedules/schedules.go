@@ -128,26 +128,26 @@ func processLeavingTask( //nolint:dupl // Returning and leaving tasks keep their
 }
 
 func userLeaving(ctx context.Context, user sqlc.User, graphClient *graph.Client) error {
-	userID, err := graphClient.FetchUserObjectID(ctx, user.Upn)
+	graphUser, err := graphClient.FetchUser(ctx, user.Upn)
 	if err != nil {
 		return fmt.Errorf("fetch user object id: %w", err)
 	}
 	for _, group := range graphClient.GroupConfig.AwayGroups {
-		err := graphClient.AddGroupMember(ctx, group, userID)
+		err := graphClient.AddGroupMember(ctx, group, graphUser)
 		if err != nil {
 			return fmt.Errorf("unable to add user to group: %w", err)
 		}
 	}
 
 	if graphClient.GroupConfig.ForceMFAGroup != "" && !user.Staff.Bool {
-		err := graphClient.AddGroupMember(ctx, graphClient.GroupConfig.ForceMFAGroup, userID)
+		err := graphClient.AddGroupMember(ctx, graphClient.GroupConfig.ForceMFAGroup, graphUser)
 		if err != nil {
 			return fmt.Errorf("unable to add user to mfa group: %w", err)
 		}
 	}
 
 	for _, group := range graphClient.GroupConfig.HomeGroups {
-		err := graphClient.RemoveGroupMember(ctx, group, userID)
+		err := graphClient.RemoveGroupMember(ctx, group, graphUser)
 		if err != nil {
 			return fmt.Errorf("unable to remove user from group: %w", err)
 		}
@@ -156,30 +156,30 @@ func userLeaving(ctx context.Context, user sqlc.User, graphClient *graph.Client)
 }
 
 func userReturning(ctx context.Context, user sqlc.User, graphClient *graph.Client) error {
-	userID, err := graphClient.FetchUserObjectID(ctx, user.Upn)
+	graphUser, err := graphClient.FetchUser(ctx, user.Upn)
 	if err != nil {
 		return fmt.Errorf("fetch user object id: %w", err)
 	}
 	for _, group := range graphClient.GroupConfig.HomeGroups {
-		err := graphClient.AddGroupMember(ctx, group, userID)
+		err := graphClient.AddGroupMember(ctx, group, graphUser)
 		if err != nil {
 			return fmt.Errorf("unable to add user to group: %w", err)
 		}
 	}
 
 	for _, group := range graphClient.GroupConfig.AwayGroups {
-		err := graphClient.RemoveGroupMember(ctx, group, userID)
+		err := graphClient.RemoveGroupMember(ctx, group, graphUser)
 		if err != nil {
 			return fmt.Errorf("unable to remove user from group: %w", err)
 		}
 	}
 
 	if graphClient.GroupConfig.ForceMFAGroup != "" && !user.Staff.Bool {
-		err := graphClient.RemoveGroupMember(ctx, graphClient.GroupConfig.ForceMFAGroup, userID)
+		err := graphClient.RemoveGroupMember(ctx, graphClient.GroupConfig.ForceMFAGroup, graphUser)
 		if err != nil {
 			return fmt.Errorf("unable to remove user from force mfa group: %w", err)
 		}
-		err = graphClient.RemoveGroupMember(ctx, graphClient.GroupConfig.EnableMFAGroup, userID)
+		err = graphClient.RemoveGroupMember(ctx, graphClient.GroupConfig.EnableMFAGroup, graphUser)
 		if err != nil {
 			return fmt.Errorf("unable to remove user from enable mfa group: %w", err)
 		}
@@ -188,11 +188,11 @@ func userReturning(ctx context.Context, user sqlc.User, graphClient *graph.Clien
 }
 
 func enableMFA(ctx context.Context, user sqlc.User, graphClient *graph.Client) error {
-	userID, err := graphClient.FetchUserObjectID(ctx, user.Upn)
+	graphUser, err := graphClient.FetchUser(ctx, user.Upn)
 	if err != nil {
 		return fmt.Errorf("fetch user object id: %w", err)
 	}
-	err = graphClient.AddGroupMember(ctx, graphClient.GroupConfig.EnableMFAGroup, userID)
+	err = graphClient.AddGroupMember(ctx, graphClient.GroupConfig.EnableMFAGroup, graphUser)
 	if err != nil {
 		return fmt.Errorf("unable to add user to enable mfa group: %w", err)
 	}
