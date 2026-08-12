@@ -7,6 +7,7 @@ Dockerfile.dockerignore
 .env.*
 
 /adoverseas
+/.air/
 /bin/
 /build/
 /tmp/
@@ -15,3 +16,9 @@ Dockerfile.dockerignore
 
 web/node_modules/
 web/dist/
+web/.vite/
+web/*.tsbuildinfo
+web/vite.config.js
+web/vite.config.d.ts
+
+.DS_Store

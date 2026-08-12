@@ -7,9 +7,14 @@
 
 # Build and tool outputs
 /adoverseas
+/.air/
 /bin/
+/dist/
 /tmp/
 /.gocache/
+/.local/
+coverage.out
+__pycache__/
 
 # Go workspace overrides
 go.work
@@ -27,16 +32,16 @@ dist/
 web/dist/*
 !web/dist/.gitkeep
 
-# Local mise overrides
+# Local Mise overrides
 .mise.local.toml
 .mise.local.lock
 
-# Env files
+# Local configuration
 .env
 .env.*
 !.env.example
 
-# Editor / IDE
+# Editor and IDE
 .vscode/
 
 # macOS

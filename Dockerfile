@@ -23,6 +23,9 @@ RUN pnpm build
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS builder
 ARG TARGETOS
 ARG TARGETARCH
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
 
 RUN apk add --no-cache upx
 WORKDIR /workspace
@@ -39,7 +42,9 @@ COPY web/ web/
 COPY --from=web /workspace/web/dist web/dist
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} \
-    go build -trimpath -ldflags "-s -w" -o adoverseas ./cmd/server
+    go build -trimpath \
+    -ldflags "-s -w -X main.buildVersion=${VERSION} -X main.gitCommit=${COMMIT} -X main.buildDate=${BUILD_DATE}" \
+    -o adoverseas ./cmd/server
 RUN upx --best --lzma adoverseas
 
 # ---- Runtime --------------------------------------------------------------

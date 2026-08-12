@@ -6,6 +6,7 @@ go = "1.26.5"
 node = "26.7.0"
 pnpm = "11.21.0"
 golangci-lint = "2.12.2"
+air = "1.67.4"
 lefthook = "2.1.10"
 actionlint = "1.7.12"
 zizmor = "1.29.0"
@@ -36,7 +37,7 @@ run = { tasks = ["dev-backend", "//web:dev"] }
 
 [tasks.dev-backend]
 description = "Run backend development server"
-run = "go run ./cmd/server"
+run = "air"
 
 [tasks.build]
 description = "Build web bundle and backend binary"
@@ -105,7 +106,7 @@ run = ["actionlint", "zizmor --offline --no-ignores .github/workflows"]
 
 [tasks.clean]
 description = "Remove local build outputs"
-run = "rm -rf adoverseas bin tmp web/dist"
+run = "rm -rf adoverseas .air bin web/dist"
 
 [hooks]
 postinstall = "lefthook install"
