@@ -2,7 +2,7 @@
 
 # Defaults keep local and Compose builds self-contained. Renovate updates these
 # alongside the matching Mise, module, and package pins.
-ARG NODE_VERSION=26.5.1
+ARG NODE_VERSION=26.7.0
 ARG GO_VERSION=1.26.5
 
 # ---- Web build ------------------------------------------------------------
