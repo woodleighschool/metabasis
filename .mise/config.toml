@@ -1,7 +1,7 @@
 monorepo_root = true
 
 [tools]
-go = "1.26.5"
+go = "1.26.6"
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.6.0"
 node = "26.7.0"
 pnpm = "11.21.0"

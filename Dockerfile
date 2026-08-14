@@ -1,14 +1,11 @@
 # syntax=docker/dockerfile:1
 
-# Defaults keep local and Compose builds self-contained. Renovate updates these
-# alongside the matching Mise, module, and package pins.
-ARG NODE_VERSION=26.7.0
-ARG GO_VERSION=1.26.5
+# Keep the container toolchains aligned with Mise. Renovate updates each pair.
 
 # ---- Web build ------------------------------------------------------------
 # Build the frontend bundle so the Go stage can embed it. The runtime image
 # does not include Node.
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-alpine AS web
+FROM --platform=$BUILDPLATFORM node:26.7.0-alpine AS web
 WORKDIR /workspace/web
 
 # Install dependencies against the lockfile first for layer caching.
@@ -20,7 +17,7 @@ COPY web/ ./
 RUN pnpm build
 
 # ---- Go build -------------------------------------------------------------
-FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26.6-alpine AS builder
 ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION=dev
