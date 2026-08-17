@@ -12,7 +12,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/microsoft/kiota-abstractions-go v1.9.4
-	github.com/microsoftgraph/msgraph-sdk-go v1.100.0
+	github.com/microsoftgraph/msgraph-sdk-go v1.101.0
 	github.com/robfig/cron/v3 v3.0.1
 	golang.org/x/oauth2 v0.36.0
 )
