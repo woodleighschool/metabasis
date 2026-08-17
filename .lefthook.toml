@@ -6,11 +6,8 @@ configs = ["lefthook.common.toml"]
 [pre-commit.commands.format-web]
 glob = ["web/**/*.{ts,tsx,js,jsx,css}"]
 root = "web/"
-run = "oxfmt {staged_files}"
+run = "oxfmt --no-error-on-unmatched-pattern {staged_files}"
 stage_fixed = true
-
-[pre-commit.commands.format-yaml]
-exclude = ["**/pnpm-lock.yaml"]
 
 [commit-msg.commands.commitlint]
 run = "commitlint --default-config --edit {1}"
