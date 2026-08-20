@@ -6,6 +6,17 @@ Reconciles temporary Microsoft Entra group membership from webhook-driven intent
 
 Metabasis accepts a small canonical intent, persists it in PostgreSQL, derives its current temporal phase, and applies only the Entra groups declared in `managed_groups`. Configuration owns the identity rules; the scheduler only decides when to recalculate them.
 
+```mermaid
+flowchart LR
+  freshservice["Freshservice<br/>travel request"] --> webhook["Metabasis<br/>webhook"]
+  webhook --> intent[("Durable intent")]
+  intent --> pending["Pending<br/>in Australia"]
+  pending -->|starts_at| active["Active<br/>outside Australia"]
+  active --> policy["Access allowed<br/>MFA enforced"]
+  policy -->|ends_at or cancelled| ended["Ended<br/>back in Australia"]
+  ended --> cleanup["Temporary access<br/>removed"]
+```
+
 ## Usage
 
 Start from [`config.example.yaml`](config.example.yaml). If `config.yaml` is present in the current directory, `--config` may be omitted:
