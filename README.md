@@ -7,14 +7,33 @@ Reconciles temporary Microsoft Entra group membership from webhook-driven intent
 Metabasis accepts a small canonical intent, persists it in PostgreSQL, derives its current temporal phase, and applies only the Entra groups declared in `managed_groups`. Configuration owns the identity rules; the scheduler only decides when to recalculate them.
 
 ```mermaid
-flowchart LR
-  freshservice["Freshservice<br/>travel request"] --> webhook["Metabasis<br/>webhook"]
-  webhook --> intent[("Durable intent")]
-  intent --> pending["Pending<br/>in Australia"]
-  pending -->|starts_at| active["Active<br/>outside Australia"]
-  active --> policy["Access allowed<br/>MFA enforced"]
-  policy -->|ends_at or cancelled| ended["Ended<br/>back in Australia"]
-  ended --> cleanup["Temporary access<br/>removed"]
+flowchart TD
+  subgraph intake["Intent intake"]
+    freshservice["Freshservice<br/>travel request"] --> webhook["Metabasis<br/>webhook"]
+    webhook --> intent[("Validate and persist<br/>the intent")]
+  end
+
+  intent --> reconcile["Wake the reconciler"]
+
+  subgraph planning["Calculate the current state"]
+    reconcile --> identity["Resolve the user and<br/>current group membership"]
+    identity --> policy["Apply configured policy<br/>across all current intents"]
+    policy --> phase{"Current phase"}
+
+    phase -->|Before starts_at| pending["Pending<br/>In Australia<br/>Prepare MFA"]
+    phase -->|During travel| active["Active<br/>Outside Australia<br/>Allow access and enforce MFA"]
+    phase -->|Ended or cancelled| ended["Back in Australia<br/>Temporary access no longer required"]
+
+    pending --> desired["Calculate complete desired<br/>managed group membership"]
+    active --> desired
+    ended --> desired
+  end
+
+  desired --> entra["Reconcile owned<br/>Entra groups"]
+  entra -->|Success| schedule["Schedule the next<br/>phase transition"]
+  entra -->|Graph failure| retry["Persist the error<br/>and retry time"]
+  schedule -->|starts_at or ends_at| reconcile
+  retry --> reconcile
 ```
 
 ## Usage
