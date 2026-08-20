@@ -1,0 +1,54 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/woodleighschool/metabasis/main/metabasis.schema.json
+---
+version: 1
+
+connections:
+  microsoft:
+    type: microsoft_graph
+    tenant_id: ${MICROSOFT_TENANT_ID}
+    client_id: ${MICROSOFT_CLIENT_ID}
+    client_secret: ${MICROSOFT_CLIENT_SECRET}
+
+database:
+  url: ${DATABASE_URL}
+
+webhooks:
+  travel_system:
+    path: /webhooks/travel-system
+    bearer_token: ${TRAVEL_SYSTEM_WEBHOOK_TOKEN}
+
+identity:
+  connection: microsoft
+  groups:
+    students:
+      - ${ENTRA_STUDENTS_GROUP_ID}
+    staff:
+      - ${ENTRA_STAFF_GROUP_ID}
+
+managed_groups:
+  mfa_registration: ${ENTRA_MFA_REGISTRATION_GROUP_ID}
+  temporary_access: ${ENTRA_TEMPORARY_ACCESS_GROUP_ID}
+
+rules:
+  - name: students
+    when: '"students" in user.groups'
+    phases:
+      pending:
+        groups:
+          - mfa_registration
+      active:
+        groups:
+          - mfa_registration
+          - temporary_access
+
+  - name: staff
+    when: '"staff" in user.groups'
+    phases:
+      active:
+        groups:
+          - temporary_access
+
+reconcile:
+  poll_interval: 1m
+  retry_initial: 30s
+  retry_max: 15m

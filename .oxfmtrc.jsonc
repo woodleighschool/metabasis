@@ -1,3 +1,4 @@
 {
+  "ignorePatterns": ["metabasis.schema.json"],
   "printWidth": 100,
 }

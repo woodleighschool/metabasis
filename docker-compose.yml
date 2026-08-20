@@ -1,24 +1,28 @@
 ---
 services:
-  adoverseas:
-    image: ghcr.io/woodleighschool/adoverseas:rolling
-    # Uncomment below to build local source
+  metabasis:
+    image: ghcr.io/woodleighschool/metabasis:rolling
+    # Uncomment below to build local source.
     # build:
     #   context: .
     #   dockerfile: Dockerfile
     # pull_policy: build
     restart: unless-stopped
-    env_file: .env
     environment:
-      LISTEN_ADDR: :8080
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_NAME: adoverseas
-      DATABASE_USER: adoverseas
-      DATABASE_PASSWORD: adoverseas
-      DATABASE_SSLMODE: disable
+      DATABASE_URL: postgres://metabasis:metabasis@postgres:5432/metabasis?sslmode=disable
+      MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID}
+      MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID}
+      MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET}
+      FRESHSERVICE_WEBHOOK_TOKEN: ${FRESHSERVICE_WEBHOOK_TOKEN}
+      ENTRA_STUDENTS_GROUP_ID: ${ENTRA_STUDENTS_GROUP_ID}
+      ENTRA_STAFF_GROUP_ID: ${ENTRA_STAFF_GROUP_ID}
+      ENTRA_MFA_REGISTRATION_GROUP_ID: ${ENTRA_MFA_REGISTRATION_GROUP_ID}
+      ENTRA_OVERSEAS_ACCESS_GROUP_ID: ${ENTRA_OVERSEAS_ACCESS_GROUP_ID}
+      ENTRA_OVERSEAS_MFA_GROUP_ID: ${ENTRA_OVERSEAS_MFA_GROUP_ID}
     ports:
-      - "${ADOVERSEAS_PORT:-8080}:8080"
+      - "${METABASIS_PORT:-8080}:8080"
+    volumes:
+      - ./config.yaml:/config.yaml:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -27,9 +31,9 @@ services:
     image: postgres:18-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: adoverseas
-      POSTGRES_PASSWORD: adoverseas
-      POSTGRES_DB: adoverseas
+      POSTGRES_USER: metabasis
+      POSTGRES_PASSWORD: metabasis
+      POSTGRES_DB: metabasis
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:

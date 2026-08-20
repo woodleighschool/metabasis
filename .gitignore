@@ -6,31 +6,17 @@
 *.out
 
 # Build and tool outputs
-/adoverseas
-/.air/
+/metabasis
 /bin/
 /dist/
 /tmp/
 /.gocache/
-/.local/
 coverage.out
-__pycache__/
 
 # Go workspace overrides
 go.work
 go.work.sum
 /vendor/
-
-# Frontend dependencies and build outputs
-node_modules/
-*.tsbuildinfo
-vite.config.js
-vite.config.d.ts
-.vite/
-dist/
-!web/dist/
-web/dist/*
-!web/dist/.gitkeep
 
 # Local Mise overrides
 .mise.local.toml
@@ -40,6 +26,8 @@ web/dist/*
 .env
 .env.*
 !.env.example
+config.yml
+config.yaml
 
 # Editor and IDE
 .vscode/

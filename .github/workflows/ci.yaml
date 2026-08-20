@@ -59,6 +59,22 @@ jobs:
     name: Backend
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      METABASIS_TEST_DATABASE_URL: postgres://metabasis:metabasis@localhost:5432/postgres?sslmode=disable
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: metabasis
+          POSTGRES_PASSWORD: metabasis
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U metabasis -d postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -87,70 +103,31 @@ jobs:
           key: ${{ runner.os }}-golangci-lint-${{ hashFiles('go.sum', '.golangci.yml', '.mise/mise.lock') }}
 
       - name: Check Go formatting
-        run: mise run go-fmt-check
+        run: mise run fmt-check
 
       - name: Check Go module tidiness
         run: mise run tidy-check
 
       - name: Run Go lint
-        run: mise run go-lint
+        run: mise run lint
+
+      - name: Regenerate committed artifacts
+        run: mise run generate
+
+      - name: Check generated artifacts are committed
+        run: |
+          generated_status=$(git status --short --untracked-files=all -- metabasis.schema.json)
+          test -z "$generated_status" || {
+            printf '%s\n' "$generated_status"
+            git diff -- metabasis.schema.json
+            exit 1
+          }
 
       - name: Run dependency-free Go checks
         run: mise run test
 
-  frontend:
-    name: Frontend
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup Mise
-        uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518 # v4.2.5
-        with:
-          experimental: true
-          install_args: --locked go node pnpm oxfmt oxlint
-
-      - name: Cache Go modules and build
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
-          restore-keys: ${{ runner.os }}-go-
-
-      - name: Resolve pnpm store
-        id: pnpm
-        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
-
-      - name: Cache pnpm store
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.pnpm.outputs.path }}
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('web/pnpm-lock.yaml') }}
-          restore-keys: ${{ runner.os }}-pnpm-
-
-      - name: Check frontend formatting
-        run: mise run //web:fmt-check
-
-      - name: Lint frontend
-        run: mise run //web:lint
-
-      - name: Regenerate SQL code
-        run: mise run generate
-
-      - name: Check generated SQL code is committed
-        run: |
-          generated_status=$(git status --short --untracked-files=all -- internal/store/sqlc)
-          test -z "$generated_status" || {
-            printf '%s\n' "$generated_status"
-            git diff -- internal/store/sqlc
-            exit 1
-          }
+      - name: Run PostgreSQL integration tests
+        run: mise run test-postgres
 
       - name: Build application
         run: mise run build
@@ -183,7 +160,6 @@ jobs:
     needs:
       - workflow-lint
       - backend
-      - frontend
       - go-vulncheck
     runs-on: ubuntu-24.04
     permissions: {}
