@@ -3,9 +3,9 @@ module github.com/woodleighschool/metabasis
 go 1.27.0
 
 require (
+	cel.dev/cel-go v0.32.0
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.0
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.14.0
-	cel.dev/cel-go v0.31.0
 	github.com/invopop/jsonschema v0.14.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/pressly/goose/v3 v3.27.3
