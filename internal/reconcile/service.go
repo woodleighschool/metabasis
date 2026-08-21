@@ -99,19 +99,6 @@ func (s *Service) ReconcileSubject(ctx context.Context, subject string) (result 
 	return result, nil
 }
 
-// PlanSubject derives a read-only plan without changing PostgreSQL or Entra.
-func (s *Service) PlanSubject(ctx context.Context, subject string) (planner.Plan, error) {
-	intents, err := s.store.ListIntents(ctx, subject)
-	if err != nil {
-		return planner.Plan{}, err
-	}
-	snapshot, err := s.directory.Resolve(ctx, subject, s.config.Identity.Groups, s.config.ManagedGroups)
-	if err != nil {
-		return planner.Plan{}, err
-	}
-	return planner.Build(s.config, snapshot.User, intents, snapshot.ManagedGroups, s.now().UTC())
-}
-
 // PlanEvent overlays one canonical event on persisted state without writing either system.
 func (s *Service) PlanEvent(ctx context.Context, event intent.Intent) (planner.Plan, error) {
 	if err := event.Validate(); err != nil {
