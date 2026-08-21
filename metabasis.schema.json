@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/woodleighschool/metabasis/main/metabasis.schema.json",
+  "$ref": "#/$defs/Config",
+  "$defs": {
+    "Config": {
+      "properties": {
+        "version": {
+          "type": "integer",
+          "enum": [
+            1
+          ]
+        },
+        "listen": {
+          "type": "string"
+        },
+        "connections": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Connection"
+          },
+          "type": "object"
+        },
+        "database": {
+          "$ref": "#/$defs/Database"
+        },
+        "webhooks": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Webhook"
+          },
+          "type": "object"
+        },
+        "identity": {
+          "$ref": "#/$defs/Identity"
+        },
+        "managed_groups": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/Rule"
+          },
+          "type": "array",
+          "minItems": 1
+        },
+        "reconcile": {
+          "$ref": "#/$defs/Reconcile"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "version",
+        "connections",
+        "database",
+        "webhooks",
+        "identity",
+        "managed_groups",
+        "rules"
+      ]
+    },
+    "Connection": {
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "microsoft_graph"
+          ]
+        },
+        "tenant_id": {
+          "type": "string"
+        },
+        "client_id": {
+          "type": "string"
+        },
+        "client_secret": {
+          "type": "string"
+        },
+        "base_url": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "type",
+        "tenant_id",
+        "client_id",
+        "client_secret"
+      ]
+    },
+    "Database": {
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "min_connections": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_connections": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_connection_lifetime": {
+          "type": "string",
+          "examples": [
+            "30s",
+            "1m",
+            "15m"
+          ]
+        },
+        "max_connection_idle_time": {
+          "type": "string",
+          "examples": [
+            "30s",
+            "1m",
+            "15m"
+          ]
+        },
+        "health_check_period": {
+          "type": "string",
+          "examples": [
+            "30s",
+            "1m",
+            "15m"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "url"
+      ]
+    },
+    "Identity": {
+      "properties": {
+        "connection": {
+          "type": "string"
+        },
+        "groups": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "connection",
+        "groups"
+      ]
+    },
+    "Phase": {
+      "properties": {
+        "groups": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Phases": {
+      "properties": {
+        "pending": {
+          "$ref": "#/$defs/Phase"
+        },
+        "active": {
+          "$ref": "#/$defs/Phase"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Reconcile": {
+      "properties": {
+        "poll_interval": {
+          "type": "string",
+          "examples": [
+            "30s",
+            "1m",
+            "15m"
+          ]
+        },
+        "retry_initial": {
+          "type": "string",
+          "examples": [
+            "30s",
+            "1m",
+            "15m"
+          ]
+        },
+        "retry_max": {
+          "type": "string",
+          "examples": [
+            "30s",
+            "1m",
+            "15m"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
+    "Rule": {
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "when": {
+          "type": "string"
+        },
+        "phases": {
+          "$ref": "#/$defs/Phases"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "name",
+        "when",
+        "phases"
+      ]
+    },
+    "Webhook": {
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "bearer_token": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "path",
+        "bearer_token"
+      ]
+    }
+  },
+  "title": "Metabasis configuration",
+  "description": "PostgreSQL, webhook, identity, and temporal group reconciliation policy."
+}
