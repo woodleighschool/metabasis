@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.1.0](https://github.com/woodleighschool/metabasis/compare/3.0.0...3.1.0) (2026-08-21)
+
+
+### Features
+
+* export metrics and serialize subject writes ([40d7e04](https://github.com/woodleighschool/metabasis/commit/40d7e04789f09554ceb372b69d3e7d1dc088b555))
+
+
+### Bug Fixes
+
+* preserve unasserted group memberships ([c8718b6](https://github.com/woodleighschool/metabasis/commit/c8718b6ee707dfa07405039a9d7810a374d8c113))
+* **reconcile:** remove deadcode ([8d43168](https://github.com/woodleighschool/metabasis/commit/8d43168755d595cadfb56e787b471cfb7ecf6f0e))
+
 ## [3.0.0](https://github.com/woodleighschool/ADOverseas/compare/2.5.2...3.0.0) (2026-08-21)
 
 
