@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const validConfig = `version: 1
+const validConfig = `version: 2
 connections:
   microsoft:
     type: microsoft_graph
@@ -27,22 +27,28 @@ identity:
   groups:
     students: [student-group]
     staff: [staff-group]
-managed_groups:
-  mfa_registration: mfa-registration
-  overseas_access: overseas-access
+    home_access: [home-access]
+    mfa_registration: [mfa-registration]
+    overseas_access: [overseas-access]
 rules:
   - name: students
     when: '"students" in user.groups'
-    phases:
+    states:
       pending:
-        groups: [mfa_registration]
+        present: [home_access, mfa_registration]
+        absent: [overseas_access]
       active:
-        groups: [mfa_registration, overseas_access]
+        present: [mfa_registration, overseas_access]
+        absent: [home_access]
+      settled:
+        present: [home_access]
+        absent: [mfa_registration, overseas_access]
   - name: staff
     when: '"staff" in user.groups'
-    phases:
+    states:
       active:
-        groups: [overseas_access]
+        present: [overseas_access]
+        absent: [home_access]
 `
 
 func TestLoadStrictConfigurationAndDefaults(t *testing.T) {
@@ -80,15 +86,14 @@ func TestLoadAppliesOrderedOverlays(t *testing.T) {
 	groups := writeConfig(t, "groups.yaml", `identity:
   groups:
     students: [site-students]
-managed_groups:
-  overseas_access: site-overseas
+    overseas_access: [site-overseas]
 `)
 	rules := writeConfig(t, "rules.yaml", `rules:
   - name: everyone
     when: user.present
-    phases:
+    states:
       active:
-        groups: [overseas_access]
+        present: [overseas_access]
 `)
 	cfg, err := load([]string{base, groups, rules}, func(name string) (string, bool) {
 		return "secret", name == "CLIENT_SECRET"
@@ -102,8 +107,8 @@ managed_groups:
 	if got, want := cfg.Identity.Groups["staff"], []string{"staff-group"}; !slices.Equal(got, want) {
 		t.Errorf("staff = %v, want %v", got, want)
 	}
-	if got, want := cfg.ManagedGroups["overseas_access"], "site-overseas"; got != want {
-		t.Errorf("overseas_access = %q, want %q", got, want)
+	if got, want := cfg.Identity.Groups["overseas_access"], []string{"site-overseas"}; !slices.Equal(got, want) {
+		t.Errorf("overseas_access = %v, want %v", got, want)
 	}
 	if got, want := len(cfg.Rules), 1; got != want || cfg.Rules[0].Name != "everyone" {
 		t.Errorf("rules = %+v, want replacement everyone rule", cfg.Rules)
@@ -125,17 +130,17 @@ func TestLoadRejectsUnknownFieldsAndPartialEnvironmentPlaceholders(t *testing.T)
 	}
 }
 
-func TestLoadRejectsUnknownManagedGroupAndInvalidCEL(t *testing.T) {
+func TestLoadRejectsUnknownGroupAliasAndInvalidCEL(t *testing.T) {
 	t.Parallel()
 	unknownGroup := writeConfig(t, "unknown-group.yaml", strings.Replace(
 		validConfig,
-		"groups: [mfa_registration, overseas_access]",
-		"groups: [mfa_registration, unowned]",
+		"present: [mfa_registration, overseas_access]",
+		"present: [mfa_registration, unknown]",
 		1,
 	))
 	_, err := load([]string{unknownGroup}, func(string) (string, bool) { return "secret", true })
-	if err == nil || !strings.Contains(err.Error(), `unknown managed group "unowned"`) {
-		t.Fatalf("unknown managed group error = %v", err)
+	if err == nil || !strings.Contains(err.Error(), `unknown identity group alias "unknown"`) {
+		t.Fatalf("unknown group alias error = %v", err)
 	}
 
 	invalidCEL := writeConfig(t, "invalid-cel.yaml", strings.Replace(
@@ -147,6 +152,31 @@ func TestLoadRejectsUnknownManagedGroupAndInvalidCEL(t *testing.T) {
 	_, err = load([]string{invalidCEL}, func(string) (string, bool) { return "secret", true })
 	if err == nil || !strings.Contains(err.Error(), "compile CEL expression") {
 		t.Fatalf("invalid CEL error = %v", err)
+	}
+}
+
+func TestLoadRejectsAmbiguousAndConflictingGroupAssertions(t *testing.T) {
+	t.Parallel()
+	ambiguous := writeConfig(t, "ambiguous.yaml", strings.Replace(
+		validConfig,
+		"overseas_access: [overseas-access]",
+		"overseas_access: [overseas-access, second-overseas-access]",
+		1,
+	))
+	_, err := load([]string{ambiguous}, func(string) (string, bool) { return "secret", true })
+	if err == nil || !strings.Contains(err.Error(), `identity group alias "overseas_access" must resolve to exactly one group ID`) {
+		t.Fatalf("ambiguous group assertion error = %v", err)
+	}
+
+	conflicting := writeConfig(t, "conflicting.yaml", strings.Replace(
+		validConfig,
+		"absent: [home_access]",
+		"absent: [home_access, overseas_access]",
+		1,
+	))
+	_, err = load([]string{conflicting}, func(string) (string, bool) { return "secret", true })
+	if err == nil || !strings.Contains(err.Error(), `both requires and forbids identity group alias "overseas_access"`) {
+		t.Fatalf("conflicting group assertion error = %v", err)
 	}
 }
 

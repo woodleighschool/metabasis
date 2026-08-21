@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/woodleighschool/metabasis/internal/config"
-	"github.com/woodleighschool/metabasis/internal/graph"
+	"github.com/woodleighschool/metabasis/internal/domain"
 	"github.com/woodleighschool/metabasis/internal/intent"
 	"github.com/woodleighschool/metabasis/internal/metrics"
 	"github.com/woodleighschool/metabasis/internal/planner"
@@ -16,7 +16,7 @@ import (
 
 // Directory is the consumer-owned boundary for Entra identity and membership operations.
 type Directory interface {
-	Resolve(context.Context, string, map[string][]string, map[string]string) (graph.Snapshot, error)
+	Resolve(context.Context, string, map[string][]string) (domain.User, error)
 	AddGroupMember(context.Context, string, string) error
 	RemoveGroupMember(context.Context, string, string) error
 }
@@ -28,7 +28,7 @@ type Result struct {
 	Error   string       `json:"error,omitempty"`
 }
 
-// Service derives and applies complete managed-group state for subjects.
+// Service derives and applies explicit group membership assertions for subjects.
 type Service struct {
 	config    *config.Config
 	store     *store.Store
@@ -63,7 +63,7 @@ func (s *Service) ReconcileDue(ctx context.Context) ([]Result, error) {
 	return s.reconcileSubjects(ctx, subjects)
 }
 
-// ReconcileSubject derives current desired state and applies only its managed-group diff.
+// ReconcileSubject derives and applies the current membership assertions.
 func (s *Service) ReconcileSubject(ctx context.Context, subject string) (result Result, err error) {
 	result.Subject = subject
 	observedAt := time.Now()
@@ -84,22 +84,22 @@ func (s *Service) ReconcileSubject(ctx context.Context, subject string) (result 
 		return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, err)
 	}
 	nextTransition = nextTransitionAt(intents, started)
-	snapshot, err := s.directory.Resolve(ctx, subject, s.config.Identity.Groups, s.config.ManagedGroups)
+	user, err := s.directory.Resolve(ctx, subject, s.config.Identity.Groups)
 	if err != nil {
 		return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, err)
 	}
-	result.Plan, err = planner.Build(s.config, snapshot.User, intents, snapshot.ManagedGroups, started)
+	result.Plan, err = planner.Build(s.config, user, intents, started)
 	if err != nil {
 		return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, err)
 	}
 	for _, alias := range result.Plan.AddGroups {
-		if err := s.directory.AddGroupMember(ctx, s.config.ManagedGroups[alias], snapshot.User.ID); err != nil {
-			return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, fmt.Errorf("add managed group %q: %w", alias, err))
+		if err := s.directory.AddGroupMember(ctx, s.config.Identity.Groups[alias][0], user.ID); err != nil {
+			return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, fmt.Errorf("add group %q: %w", alias, err))
 		}
 	}
 	for _, alias := range result.Plan.RemoveGroups {
-		if err := s.directory.RemoveGroupMember(ctx, s.config.ManagedGroups[alias], snapshot.User.ID); err != nil {
-			return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, fmt.Errorf("remove managed group %q: %w", alias, err))
+		if err := s.directory.RemoveGroupMember(ctx, s.config.Identity.Groups[alias][0], user.ID); err != nil {
+			return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, fmt.Errorf("remove group %q: %w", alias, err))
 		}
 	}
 	if err := subjectSession.RecordSuccess(ctx, started, result.Plan.NextTransition); err != nil {
@@ -128,11 +128,11 @@ func (s *Service) PlanEvent(ctx context.Context, event intent.Intent) (planner.P
 	if !replaced {
 		intents = append(intents, event)
 	}
-	snapshot, err := s.directory.Resolve(ctx, event.Subject, s.config.Identity.Groups, s.config.ManagedGroups)
+	user, err := s.directory.Resolve(ctx, event.Subject, s.config.Identity.Groups)
 	if err != nil {
 		return planner.Plan{}, err
 	}
-	return planner.Build(s.config, snapshot.User, intents, snapshot.ManagedGroups, s.now().UTC())
+	return planner.Build(s.config, user, intents, s.now().UTC())
 }
 
 // NextWake returns the next persisted phase boundary or retry time.

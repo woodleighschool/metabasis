@@ -26,17 +26,19 @@ func writePlan(writer io.Writer, output string, plan planner.Plan) error {
 		next = plan.NextTransition.Format(time.RFC3339)
 	}
 	table := tabwriter.NewWriter(writer, 0, 4, 2, ' ', 0)
-	if _, err := fmt.Fprintln(table, "SUBJECT\tRESOLVED\tRULE\tPHASES\tDESIRED\tCURRENT\tADD\tREMOVE\tNEXT"); err != nil {
+	if _, err := fmt.Fprintln(table, "SUBJECT\tRESOLVED\tRULE\tSTATE\tPHASES\tPRESENT\tABSENT\tCURRENT\tADD\tREMOVE\tNEXT"); err != nil {
 		return err
 	}
 	if _, err := fmt.Fprintf(
 		table,
-		"%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		"%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 		plan.Subject,
 		plan.User.UserPrincipalName,
 		plan.Rule,
+		plan.State,
 		strings.Join(phases, ","),
-		strings.Join(plan.DesiredGroups, ","),
+		strings.Join(plan.PresentGroups, ","),
+		strings.Join(plan.AbsentGroups, ","),
 		strings.Join(plan.CurrentGroups, ","),
 		strings.Join(plan.AddGroups, ","),
 		strings.Join(plan.RemoveGroups, ","),

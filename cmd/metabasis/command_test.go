@@ -67,7 +67,7 @@ func writeCommandConfig(t *testing.T, directory, name, contents string) string {
 	return path
 }
 
-const commandConfig = `version: 1
+const commandConfig = `version: 2
 connections:
   microsoft:
     type: microsoft_graph
@@ -84,12 +84,11 @@ identity:
   connection: microsoft
   groups:
     students: [student-group]
-managed_groups:
-  overseas_access: overseas-access
+    overseas_access: [overseas-access]
 rules:
   - name: students
     when: '"students" in user.groups'
-    phases:
+    states:
       active:
-        groups: [overseas_access]
+        present: [overseas_access]
 `

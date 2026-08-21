@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/woodleighschool/metabasis/main/metabasis.schema.json
 ---
-version: 1
+version: 2
 listen: :8080
 metrics_listen: :8081
 
@@ -26,29 +26,60 @@ identity:
       - ${ENTRA_STUDENTS_GROUP_ID}
     staff:
       - ${ENTRA_STAFF_GROUP_ID}
-
-managed_groups:
-  mfa_registration: ${ENTRA_MFA_REGISTRATION_GROUP_ID}
-  temporary_access: ${ENTRA_TEMPORARY_ACCESS_GROUP_ID}
+    block_outside_australia:
+      - ${ENTRA_BLOCK_OUTSIDE_AUSTRALIA_GROUP_ID}
+    allow_overseas:
+      - ${ENTRA_ALLOW_OVERSEAS_GROUP_ID}
+    enable_mfa:
+      - ${ENTRA_ENABLE_MFA_GROUP_ID}
+    force_mfa:
+      - ${ENTRA_FORCE_MFA_GROUP_ID}
 
 rules:
   - name: students
     when: '"students" in user.groups'
-    phases:
+    states:
       pending:
-        groups:
-          - mfa_registration
+        present:
+          - block_outside_australia
+          - enable_mfa
+        absent:
+          - allow_overseas
+          - force_mfa
       active:
-        groups:
-          - mfa_registration
-          - temporary_access
+        present:
+          - allow_overseas
+          - enable_mfa
+          - force_mfa
+        absent:
+          - block_outside_australia
+      settled:
+        present:
+          - block_outside_australia
+        absent:
+          - allow_overseas
+          - enable_mfa
+          - force_mfa
 
   - name: staff
     when: '"staff" in user.groups'
-    phases:
+    states:
+      pending:
+        present:
+          - block_outside_australia
+        absent:
+          - allow_overseas
       active:
-        groups:
-          - temporary_access
+        present:
+          - allow_overseas
+          - force_mfa
+        absent:
+          - block_outside_australia
+      settled:
+        present:
+          - block_outside_australia
+        absent:
+          - allow_overseas
 
 reconcile:
   poll_interval: 1m

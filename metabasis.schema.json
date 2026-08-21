@@ -8,7 +8,7 @@
         "version": {
           "type": "integer",
           "enum": [
-            1
+            2
           ]
         },
         "listen": {
@@ -35,12 +35,6 @@
         "identity": {
           "$ref": "#/$defs/Identity"
         },
-        "managed_groups": {
-          "additionalProperties": {
-            "type": "string"
-          },
-          "type": "object"
-        },
         "rules": {
           "items": {
             "$ref": "#/$defs/Rule"
@@ -60,7 +54,6 @@
         "database",
         "webhooks",
         "identity",
-        "managed_groups",
         "rules"
       ]
     },
@@ -138,6 +131,26 @@
         "url"
       ]
     },
+    "GroupAssertions": {
+      "properties": {
+        "present": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "absent": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
+    },
     "Identity": {
       "properties": {
         "connection": {
@@ -159,31 +172,6 @@
         "connection",
         "groups"
       ]
-    },
-    "Phase": {
-      "properties": {
-        "groups": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array",
-          "uniqueItems": true
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    },
-    "Phases": {
-      "properties": {
-        "pending": {
-          "$ref": "#/$defs/Phase"
-        },
-        "active": {
-          "$ref": "#/$defs/Phase"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
     },
     "Reconcile": {
       "properties": {
@@ -223,8 +211,8 @@
         "when": {
           "type": "string"
         },
-        "phases": {
-          "$ref": "#/$defs/Phases"
+        "states": {
+          "$ref": "#/$defs/States"
         }
       },
       "additionalProperties": false,
@@ -232,8 +220,23 @@
       "required": [
         "name",
         "when",
-        "phases"
+        "states"
       ]
+    },
+    "States": {
+      "properties": {
+        "pending": {
+          "$ref": "#/$defs/GroupAssertions"
+        },
+        "active": {
+          "$ref": "#/$defs/GroupAssertions"
+        },
+        "settled": {
+          "$ref": "#/$defs/GroupAssertions"
+        }
+      },
+      "additionalProperties": false,
+      "type": "object"
     },
     "Webhook": {
       "properties": {

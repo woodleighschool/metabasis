@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strings"
 
@@ -28,12 +29,6 @@ var graphScopes = []string{"https://graph.microsoft.com/.default"}
 
 type tokenCredential interface {
 	GetToken(context.Context, policy.TokenRequestOptions) (azcore.AccessToken, error)
-}
-
-// Snapshot is the resolved identity and its current declared managed groups.
-type Snapshot struct {
-	User          domain.User
-	ManagedGroups []string
 }
 
 // Client is the narrow Microsoft Graph client used by reconciliation.
@@ -61,13 +56,12 @@ func NewClient(connection config.Connection) (*Client, error) {
 	return &Client{baseURL: baseURL, httpClient: http.DefaultClient, credential: credential}, nil
 }
 
-// Resolve fetches one Entra user and the configured identity and managed group memberships.
+// Resolve fetches one Entra user and its configured group aliases.
 func (c *Client) Resolve(
 	ctx context.Context,
 	subject string,
-	identityGroups map[string][]string,
-	managedGroups map[string]string,
-) (Snapshot, error) {
+	groupAliases map[string][]string,
+) (domain.User, error) {
 	var response struct {
 		ID                string `json:"id"`
 		UserPrincipalName string `json:"userPrincipalName"`
@@ -77,41 +71,34 @@ func (c *Client) Resolve(
 	endpoint := c.baseURL + "/users/" + url.PathEscape(subject)
 	query := url.Values{"$select": {"id,userPrincipalName,mailNickname,displayName"}}
 	if err := c.request(ctx, http.MethodGet, endpoint+"?"+query.Encode(), nil, &response); err != nil {
-		return Snapshot{}, fmt.Errorf("resolve Entra user %q: %w", subject, err)
+		return domain.User{}, fmt.Errorf("resolve Entra user %q: %w", subject, err)
 	}
 	if response.ID == "" {
-		return Snapshot{}, fmt.Errorf("resolve Entra user %q: Graph returned no ID", subject)
+		return domain.User{}, fmt.Errorf("resolve Entra user %q: Graph returned no ID", subject)
 	}
 
-	groupIDs, identityAliases, managedAliases := groupLookup(identityGroups, managedGroups)
+	groupIDs, aliasesByID := prepareGroupAliases(groupAliases)
 	memberships, err := c.checkMemberGroups(ctx, response.ID, groupIDs)
 	if err != nil {
-		return Snapshot{}, err
+		return domain.User{}, err
 	}
-	identitySet := make(map[string]struct{})
-	managedSet := make(map[string]struct{})
+	groups := make(map[string]struct{})
 	for _, groupID := range memberships {
-		for _, alias := range identityAliases[groupID] {
-			identitySet[alias] = struct{}{}
-		}
-		if alias := managedAliases[groupID]; alias != "" {
-			managedSet[alias] = struct{}{}
+		for _, alias := range aliasesByID[groupID] {
+			groups[alias] = struct{}{}
 		}
 	}
-	return Snapshot{
-		User: domain.User{
-			Present:           true,
-			ID:                response.ID,
-			MailNickname:      response.MailNickname,
-			UserPrincipalName: response.UserPrincipalName,
-			DisplayName:       response.DisplayName,
-			Groups:            sortedSet(identitySet),
-		},
-		ManagedGroups: sortedSet(managedSet),
+	return domain.User{
+		Present:           true,
+		ID:                response.ID,
+		MailNickname:      response.MailNickname,
+		UserPrincipalName: response.UserPrincipalName,
+		DisplayName:       response.DisplayName,
+		Groups:            sortedSet(groups),
 	}, nil
 }
 
-// AddGroupMember adds a user to a declared managed group.
+// AddGroupMember adds a user to a group.
 func (c *Client) AddGroupMember(ctx context.Context, groupID, userID string) error {
 	body := map[string]string{"@odata.id": c.baseURL + "/directoryObjects/" + url.PathEscape(userID)}
 	endpoint := c.baseURL + "/groups/" + url.PathEscape(groupID) + "/members/$ref"
@@ -121,7 +108,7 @@ func (c *Client) AddGroupMember(ctx context.Context, groupID, userID string) err
 	return nil
 }
 
-// RemoveGroupMember removes a user from a declared managed group.
+// RemoveGroupMember removes a user from a group.
 func (c *Client) RemoveGroupMember(ctx context.Context, groupID, userID string) error {
 	endpoint := c.baseURL + "/groups/" + url.PathEscape(groupID) + "/members/" + url.PathEscape(userID) + "/$ref"
 	if err := c.request(ctx, http.MethodDelete, endpoint, nil, nil); err != nil {
@@ -187,28 +174,21 @@ func (c *Client) request(ctx context.Context, method, endpoint string, body any,
 	return nil
 }
 
-func groupLookup(
-	identityGroups map[string][]string,
-	managedGroups map[string]string,
-) ([]string, map[string][]string, map[string]string) {
-	identityAliases := make(map[string][]string)
-	managedAliases := make(map[string]string)
-	unique := make(map[string]struct{})
-	for alias, groupIDs := range identityGroups {
+func prepareGroupAliases(groupAliases map[string][]string) ([]string, map[string][]string) {
+	aliasesByID := make(map[string][]string)
+	for alias, groupIDs := range groupAliases {
 		for _, groupID := range groupIDs {
-			unique[groupID] = struct{}{}
-			identityAliases[groupID] = append(identityAliases[groupID], alias)
+			aliasesByID[groupID] = append(aliasesByID[groupID], alias)
 		}
 	}
-	for alias, groupID := range managedGroups {
-		unique[groupID] = struct{}{}
-		managedAliases[groupID] = alias
+	groupIDs := make([]string, 0, len(aliasesByID))
+	for groupID, aliases := range aliasesByID {
+		sort.Strings(aliases)
+		aliasesByID[groupID] = slices.Compact(aliases)
+		groupIDs = append(groupIDs, groupID)
 	}
-	groupIDs := sortedSet(unique)
-	for groupID := range identityAliases {
-		sort.Strings(identityAliases[groupID])
-	}
-	return groupIDs, identityAliases, managedAliases
+	sort.Strings(groupIDs)
+	return groupIDs, aliasesByID
 }
 
 func sortedSet(values map[string]struct{}) []string {

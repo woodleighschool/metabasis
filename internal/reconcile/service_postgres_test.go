@@ -13,20 +13,19 @@ import (
 
 	"github.com/woodleighschool/metabasis/internal/config"
 	"github.com/woodleighschool/metabasis/internal/domain"
-	"github.com/woodleighschool/metabasis/internal/graph"
 	"github.com/woodleighschool/metabasis/internal/intent"
 	"github.com/woodleighschool/metabasis/internal/testutil/testdb"
 )
 
 type fakeDirectory struct {
-	snapshot graph.Snapshot
-	err      error
-	added    []string
-	removed  []string
+	user    domain.User
+	err     error
+	added   []string
+	removed []string
 }
 
-func (d *fakeDirectory) Resolve(context.Context, string, map[string][]string, map[string]string) (graph.Snapshot, error) {
-	return d.snapshot, d.err
+func (d *fakeDirectory) Resolve(context.Context, string, map[string][]string) (domain.User, error) {
+	return d.user, d.err
 }
 
 func (d *fakeDirectory) AddGroupMember(_ context.Context, groupID, _ string) error {
@@ -52,8 +51,8 @@ func TestGraphFailurePersistsRetryAndRestartRecoversMissedTransition(t *testing.
 		t.Fatalf("UpsertIntent() error = %v", err)
 	}
 	failingDirectory := &fakeDirectory{
-		snapshot: graph.Snapshot{User: domain.User{Present: true, ID: "user-id", Groups: []string{"students"}}},
-		err:      errors.New("Graph unavailable"),
+		user: domain.User{Present: true, ID: "user-id", Groups: []string{"students"}},
+		err:  errors.New("Graph unavailable"),
 	}
 	service, err := New(cfg, intentStore, failingDirectory, nil)
 	if err != nil {
@@ -76,7 +75,7 @@ func TestGraphFailurePersistsRetryAndRestartRecoversMissedTransition(t *testing.
 	}
 
 	recoveredDirectory := &fakeDirectory{
-		snapshot: graph.Snapshot{User: domain.User{Present: true, ID: "user-id", Groups: []string{"students"}}},
+		user: domain.User{Present: true, ID: "user-id", Groups: []string{"students"}},
 	}
 	restarted, err := New(cfg, intentStore, recoveredDirectory, nil)
 	if err != nil {
@@ -90,7 +89,7 @@ func TestGraphFailurePersistsRetryAndRestartRecoversMissedTransition(t *testing.
 	if len(results) != 1 || results[0].Plan.Intents[0].Phase != intent.PhaseActive {
 		t.Fatalf("restart results = %+v", results)
 	}
-	if got, want := recoveredDirectory.added, []string{"mfa-registration", "overseas-access"}; !slices.Equal(got, want) {
+	if got, want := recoveredDirectory.added, []string{"mfa-registration", "overseas-access", "overseas-mfa"}; !slices.Equal(got, want) {
 		t.Errorf("added groups = %v, want %v", got, want)
 	}
 	state, err = intentStore.GetState(t.Context(), accepted.Subject)
@@ -114,9 +113,10 @@ func TestReconciliationIsIdempotentWhenManagedMembershipMatches(t *testing.T) {
 	if err := intentStore.UpsertIntent(t.Context(), accepted, now); err != nil {
 		t.Fatalf("UpsertIntent() error = %v", err)
 	}
-	directory := &fakeDirectory{snapshot: graph.Snapshot{
-		User:          domain.User{Present: true, ID: "user-id", Groups: []string{"staff"}},
-		ManagedGroups: []string{"overseas_access"},
+	directory := &fakeDirectory{user: domain.User{
+		Present: true,
+		ID:      "user-id",
+		Groups:  []string{"overseas_access", "overseas_mfa", "staff"},
 	}}
 	service, err := New(cfg, intentStore, directory, nil)
 	if err != nil {
@@ -131,7 +131,7 @@ func TestReconciliationIsIdempotentWhenManagedMembershipMatches(t *testing.T) {
 	}
 }
 
-func TestReconciliationDoesNotRemoveAbsentManagedMembership(t *testing.T) {
+func TestSettledStaffReconciliationPreservesUnmentionedMFAGroup(t *testing.T) {
 	t.Parallel()
 	intentStore := testdb.Open(t)
 	cfg := loadTestConfig(t)
@@ -143,8 +143,10 @@ func TestReconciliationDoesNotRemoveAbsentManagedMembership(t *testing.T) {
 	if err := intentStore.UpsertIntent(t.Context(), accepted, now); err != nil {
 		t.Fatalf("UpsertIntent() error = %v", err)
 	}
-	directory := &fakeDirectory{snapshot: graph.Snapshot{
-		User: domain.User{Present: true, ID: "user-id", Groups: []string{"staff"}},
+	directory := &fakeDirectory{user: domain.User{
+		Present: true,
+		ID:      "user-id",
+		Groups:  []string{"overseas_access", "overseas_mfa", "staff"},
 	}}
 	service, err := New(cfg, intentStore, directory, nil)
 	if err != nil {
@@ -154,8 +156,11 @@ func TestReconciliationDoesNotRemoveAbsentManagedMembership(t *testing.T) {
 	if _, err := service.ReconcileSubject(t.Context(), accepted.Subject); err != nil {
 		t.Fatalf("ReconcileSubject() error = %v", err)
 	}
-	if len(directory.added) != 0 || len(directory.removed) != 0 {
-		t.Fatalf("Graph mutations: added=%v removed=%v", directory.added, directory.removed)
+	if got, want := directory.added, []string{"home-access"}; !slices.Equal(got, want) {
+		t.Errorf("added groups = %v, want %v", got, want)
+	}
+	if got, want := directory.removed, []string{"overseas-access"}; !slices.Equal(got, want) {
+		t.Errorf("removed groups = %v, want %v", got, want)
 	}
 }
 
@@ -171,9 +176,7 @@ func TestReconciliationUsesLockedConnectionWithSingleConnectionPool(t *testing.T
 	if err := intentStore.UpsertIntent(t.Context(), accepted, now); err != nil {
 		t.Fatalf("UpsertIntent() error = %v", err)
 	}
-	directory := &fakeDirectory{snapshot: graph.Snapshot{
-		User: domain.User{Present: true, ID: "user-id", Groups: []string{"staff"}},
-	}}
+	directory := &fakeDirectory{user: domain.User{Present: true, ID: "user-id", Groups: []string{"staff"}}}
 	service, err := New(cfg, intentStore, directory, nil)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -198,9 +201,10 @@ func TestPlanEventDoesNotModifyPersistedIntentOrGraph(t *testing.T) {
 	if err := intentStore.UpsertIntent(t.Context(), persisted, now); err != nil {
 		t.Fatalf("UpsertIntent() error = %v", err)
 	}
-	directory := &fakeDirectory{snapshot: graph.Snapshot{
-		User:          domain.User{Present: true, ID: "user-id", Groups: []string{"students"}},
-		ManagedGroups: []string{"overseas_access"},
+	directory := &fakeDirectory{user: domain.User{
+		Present: true,
+		ID:      "user-id",
+		Groups:  []string{"overseas_access", "students"},
 	}}
 	service, err := New(cfg, intentStore, directory, nil)
 	if err != nil {
@@ -231,7 +235,7 @@ func TestPlanEventDoesNotModifyPersistedIntentOrGraph(t *testing.T) {
 func loadTestConfig(t *testing.T) *config.Config {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	contents := `version: 1
+	contents := `version: 2
 connections:
   microsoft:
     type: microsoft_graph
@@ -249,22 +253,35 @@ identity:
   groups:
     students: [students]
     staff: [staff]
-managed_groups:
-  mfa_registration: mfa-registration
-  overseas_access: overseas-access
+    home_access: [home-access]
+    mfa_registration: [mfa-registration]
+    overseas_access: [overseas-access]
+    overseas_mfa: [overseas-mfa]
 rules:
   - name: students
     when: '"students" in user.groups'
-    phases:
+    states:
       pending:
-        groups: [mfa_registration]
+        present: [home_access, mfa_registration]
+        absent: [overseas_access, overseas_mfa]
       active:
-        groups: [mfa_registration, overseas_access]
+        present: [mfa_registration, overseas_access, overseas_mfa]
+        absent: [home_access]
+      settled:
+        present: [home_access]
+        absent: [mfa_registration, overseas_access, overseas_mfa]
   - name: staff
     when: '"staff" in user.groups'
-    phases:
+    states:
+      pending:
+        present: [home_access]
+        absent: [overseas_access]
       active:
-        groups: [overseas_access]
+        present: [overseas_access, overseas_mfa]
+        absent: [home_access]
+      settled:
+        present: [home_access]
+        absent: [overseas_access]
 `
 	if err := os.WriteFile(path, []byte(contents), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)

@@ -4,7 +4,7 @@
 
 Reconciles temporary Microsoft Entra group membership from webhook-driven intents and scheduled transitions.
 
-Metabasis accepts a small canonical intent, persists it in PostgreSQL, derives its current temporal phase, and applies only the Entra groups declared in `managed_groups`. Configuration owns the identity rules; the scheduler only decides when to recalculate them.
+Metabasis accepts a small canonical intent, persists it in PostgreSQL, derives the subject's aggregate temporal state, and applies only the Entra group membership assertions selected by configuration. The scheduler only decides when to recalculate them.
 
 ```mermaid
 flowchart TD
@@ -18,18 +18,18 @@ flowchart TD
   subgraph planning["Calculate the current state"]
     reconcile --> identity["Resolve the user and<br/>current group membership"]
     identity --> policy["Apply configured policy<br/>across all current intents"]
-    policy --> phase{"Current phase"}
+    policy --> state{"Aggregate subject state"}
 
-    phase -->|Before starts_at| pending["Pending<br/>In Australia<br/>Prepare MFA"]
-    phase -->|During travel| active["Active<br/>Outside Australia<br/>Allow access and enforce MFA"]
-    phase -->|Ended or cancelled| ended["Back in Australia<br/>Temporary access no longer required"]
+    state -->|No active; at least one pending| pending["Pending<br/>In Australia<br/>Prepare MFA"]
+    state -->|At least one active| active["Active<br/>Outside Australia<br/>Allow access and enforce MFA"]
+    state -->|All ended or cancelled| settled["Settled<br/>Temporary access no longer required"]
 
-    pending --> desired["Calculate complete desired<br/>managed group membership"]
-    active --> desired
-    ended --> desired
+    pending --> assertions["Select explicit present<br/>and absent assertions"]
+    active --> assertions
+    settled --> assertions
   end
 
-  desired --> entra["Reconcile owned<br/>Entra groups"]
+  assertions --> entra["Add missing present groups<br/>Remove current absent groups<br/>Preserve unmentioned groups"]
   entra -->|Success| schedule["Schedule the next<br/>phase transition"]
   entra -->|Graph failure| retry["Persist the error<br/>and retry time"]
   schedule -->|starts_at or ends_at| reconcile
@@ -69,11 +69,11 @@ Each configured webhook source uses bearer authentication. Repeated `(source, id
 
 ## Reconciliation
 
-The first matching CEL rule owns a subject. Pending and active intents contribute their configured groups; Metabasis unions those groups across overlapping intents before calculating the membership diff. Ended and cancelled intents contribute no groups.
+The first matching CEL rule applies to a subject. Metabasis selects one aggregate state across all known intents: active takes precedence over pending, while settled means every known intent has ended or was cancelled. A subject with no known intents produces no membership assertions.
 
-Only groups declared under `managed_groups` can be added or removed. Other Entra membership is neither mirrored nor modified. Graph failures leave the accepted intent intact and persist retry state.
+`identity.groups` maps provider group IDs to aliases available to CEL and membership assertions. `present` adds a missing membership, `absent` removes an existing membership, and an unmentioned alias is preserved. Writable aliases must resolve to exactly one group ID. Adds are attempted before removals; Graph failures leave the accepted intent intact and persist retry state.
 
-`plan` is read-only. It overlays the supplied event on persisted intents and shows the resolved user, matched rule, phases, desired groups, current managed membership, diff, and next transition.
+`plan` is read-only. It overlays the supplied event on persisted intents and shows the resolved user, matched rule, aggregate state, intent phases, present and absent assertions, current aliases, diff, and next transition.
 
 ## HTTP
 
@@ -87,10 +87,6 @@ The `metrics_listen` address (default `:8081`) serves `/metrics`. It includes st
 Database-derived gauges are collected at scrape time. If that query fails, `/metrics` remains available, `metabasis_state_collection_success` is `0`, the stale database gauges are omitted, and the database error is logged.
 
 Read-only `intents` commands may run alongside the service. Webhook updates and reconciliation are serialized per subject through PostgreSQL advisory locks.
-
-## Deployment from ADOverseas v2
-
-Version 3 uses a fresh PostgreSQL schema. Existing v2 schedules are not migrated and must be resubmitted as canonical intents during deployment. Rename the GitHub repository to `woodleighschool/metabasis`, update the Freshservice webhook path and JSON body, deploy the `ghcr.io/woodleighschool/metabasis` image, and mount the new YAML configuration.
 
 ## Development
 

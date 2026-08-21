@@ -64,20 +64,20 @@ func TestClientResolvesAliasesAndMutatesGroupMembership(t *testing.T) {
 	t.Cleanup(server.Close)
 	client := &Client{baseURL: server.URL + "/v1.0", httpClient: server.Client(), credential: staticCredential{}}
 
-	snapshot, err := client.Resolve(
+	user, err := client.Resolve(
 		t.Context(),
 		"student@example.com",
-		map[string][]string{"students": {"student-group"}, "staff": {"staff-group"}},
-		map[string]string{"overseas_access": "managed-access"},
+		map[string][]string{
+			"students":        {"student-group"},
+			"staff":           {"staff-group"},
+			"overseas_access": {"managed-access"},
+		},
 	)
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)
 	}
-	if got, want := snapshot.User.Groups, []string{"students"}; !slices.Equal(got, want) {
+	if got, want := user.Groups, []string{"overseas_access", "students"}; !slices.Equal(got, want) {
 		t.Errorf("User.Groups = %v, want %v", got, want)
-	}
-	if got, want := snapshot.ManagedGroups, []string{"overseas_access"}; !slices.Equal(got, want) {
-		t.Errorf("ManagedGroups = %v, want %v", got, want)
 	}
 	if err := client.AddGroupMember(t.Context(), "managed-access", "user-id"); err != nil {
 		t.Fatalf("AddGroupMember() error = %v", err)

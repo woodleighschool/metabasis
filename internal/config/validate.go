@@ -10,7 +10,7 @@ import (
 	"github.com/woodleighschool/metabasis/internal/expression"
 )
 
-const supportedVersion = 1
+const supportedVersion = 2
 
 var identifierPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 
@@ -31,9 +31,6 @@ func (c *Config) validateAndCompile() error {
 		return err
 	}
 	if err := c.validateIdentity(); err != nil {
-		return err
-	}
-	if err := c.validateManagedGroups(); err != nil {
 		return err
 	}
 	if err := c.validateRules(); err != nil {
@@ -147,27 +144,6 @@ func (c *Config) validateIdentity() error {
 	return nil
 }
 
-func (c *Config) validateManagedGroups() error {
-	if len(c.ManagedGroups) == 0 {
-		return fmt.Errorf("managed_groups must not be empty")
-	}
-	seenIDs := make(map[string]string, len(c.ManagedGroups))
-	for _, alias := range sortedKeys(c.ManagedGroups) {
-		if !identifierPattern.MatchString(alias) {
-			return fmt.Errorf("managed_groups.%s: alias must match %s", alias, identifierPattern)
-		}
-		groupID := strings.TrimSpace(c.ManagedGroups[alias])
-		if groupID == "" {
-			return fmt.Errorf("managed_groups.%s must not be empty", alias)
-		}
-		if previous := seenIDs[groupID]; previous != "" {
-			return fmt.Errorf("managed_groups.%s duplicates managed_groups.%s", alias, previous)
-		}
-		seenIDs[groupID] = alias
-	}
-	return nil
-}
-
 func (c *Config) validateRules() error {
 	if len(c.Rules) == 0 {
 		return fmt.Errorf("rules must not be empty")
@@ -192,30 +168,71 @@ func (c *Config) validateRules() error {
 			return fmt.Errorf("%s.when: %w", path, compileErr)
 		}
 		programs[index] = program
-		if len(rule.Phases.Pending.Groups) == 0 && len(rule.Phases.Active.Groups) == 0 {
-			return fmt.Errorf("%s.phases must require at least one managed group", path)
+		states := []struct {
+			name       string
+			assertions GroupAssertions
+		}{
+			{name: "pending", assertions: rule.States.Pending},
+			{name: "active", assertions: rule.States.Active},
+			{name: "settled", assertions: rule.States.Settled},
 		}
-		if err := c.validatePhaseGroups(path+".phases.pending.groups", rule.Phases.Pending.Groups); err != nil {
-			return err
+		hasAssertions := false
+		for _, state := range states {
+			if len(state.assertions.Present) != 0 || len(state.assertions.Absent) != 0 {
+				hasAssertions = true
+			}
+			if err := c.validateGroupAssertions(path+".states."+state.name, state.assertions); err != nil {
+				return err
+			}
 		}
-		if err := c.validatePhaseGroups(path+".phases.active.groups", rule.Phases.Active.Groups); err != nil {
-			return err
+		if !hasAssertions {
+			return fmt.Errorf("%s.states must contain at least one group assertion", path)
 		}
 	}
 	c.Programs = programs
 	return nil
 }
 
-func (c *Config) validatePhaseGroups(path string, groups []string) error {
-	seen := make(map[string]struct{}, len(groups))
-	for _, alias := range groups {
-		if _, ok := c.ManagedGroups[alias]; !ok {
-			return fmt.Errorf("%s references unknown managed group %q", path, alias)
+func (c *Config) validateGroupAssertions(path string, assertions GroupAssertions) error {
+	type assertion struct {
+		alias string
+		state string
+	}
+	targets := make(map[string]assertion, len(assertions.Present)+len(assertions.Absent))
+	for _, group := range []struct {
+		state   string
+		aliases []string
+	}{
+		{state: "present", aliases: assertions.Present},
+		{state: "absent", aliases: assertions.Absent},
+	} {
+		seen := make(map[string]struct{}, len(group.aliases))
+		for _, alias := range group.aliases {
+			groupIDs, ok := c.Identity.Groups[alias]
+			if !ok {
+				return fmt.Errorf("%s.%s references unknown identity group alias %q", path, group.state, alias)
+			}
+			if len(groupIDs) != 1 {
+				return fmt.Errorf("%s.%s identity group alias %q must resolve to exactly one group ID", path, group.state, alias)
+			}
+			if _, exists := seen[alias]; exists {
+				return fmt.Errorf("%s.%s contains duplicate %q", path, group.state, alias)
+			}
+			seen[alias] = struct{}{}
+			if previous, exists := targets[groupIDs[0]]; exists {
+				if previous.state != group.state {
+					return fmt.Errorf("%s both requires and forbids identity group alias %q", path, previous.alias)
+				}
+				return fmt.Errorf(
+					"%s.%s aliases %q and %q resolve to the same group ID",
+					path,
+					group.state,
+					previous.alias,
+					alias,
+				)
+			}
+			targets[groupIDs[0]] = assertion{alias: alias, state: group.state}
 		}
-		if _, exists := seen[alias]; exists {
-			return fmt.Errorf("%s contains duplicate %q", path, alias)
-		}
-		seen[alias] = struct{}{}
 	}
 	return nil
 }

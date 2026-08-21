@@ -19,7 +19,7 @@ import (
 func TestIntentsListAndShowCommands(t *testing.T) {
 	t.Parallel()
 	databaseURL := testdb.Create(t, testDatabaseURL(t))
-	configPath := writeCommandConfig(t, t.TempDir(), "config.yaml", fmt.Sprintf(`version: 1
+	configPath := writeCommandConfig(t, t.TempDir(), "config.yaml", fmt.Sprintf(`version: 2
 connections:
   microsoft:
     type: microsoft_graph
@@ -36,14 +36,13 @@ identity:
   connection: microsoft
   groups:
     students: [student-group]
-managed_groups:
-  overseas_access: overseas-access
+    overseas_access: [overseas-access]
 rules:
   - name: students
     when: '"students" in user.groups'
-    phases:
+    states:
       active:
-        groups: [overseas_access]
+        present: [overseas_access]
 `, databaseURL))
 	cfg, err := config.Load(configPath)
 	if err != nil {

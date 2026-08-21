@@ -8,14 +8,13 @@ import (
 
 // Config is Metabasis's complete versioned configuration.
 type Config struct {
-	Version       int                   `yaml:"version"                 jsonschema:"enum=1"`
+	Version       int                   `yaml:"version"                 jsonschema:"enum=2"`
 	Listen        string                `yaml:"listen,omitempty"`
 	MetricsListen string                `yaml:"metrics_listen,omitempty"`
 	Connections   map[string]Connection `yaml:"connections"             jsonschema:"minProperties=1"`
 	Database      Database              `yaml:"database"`
 	Webhooks      map[string]Webhook    `yaml:"webhooks"                jsonschema:"minProperties=1"`
 	Identity      Identity              `yaml:"identity"`
-	ManagedGroups map[string]string     `yaml:"managed_groups"          jsonschema:"minProperties=1"`
 	Rules         []Rule                `yaml:"rules"                   jsonschema:"minItems=1"`
 	Reconcile     Reconcile             `yaml:"reconcile,omitempty"`
 	Programs      []expression.Program  `yaml:"-"`
@@ -46,28 +45,30 @@ type Webhook struct {
 	BearerToken string `yaml:"bearer_token"`
 }
 
-// Identity selects the Entra connection and aliases available to CEL rules.
+// Identity selects the Entra connection and aliases available to policy.
 type Identity struct {
 	Connection string              `yaml:"connection"`
 	Groups     map[string][]string `yaml:"groups" jsonschema:"minProperties=1"`
 }
 
-// Rule is an ordered identity policy. The first matching rule owns the subject.
+// Rule is an ordered identity policy. The first matching rule applies to the subject.
 type Rule struct {
 	Name   string `yaml:"name"`
 	When   string `yaml:"when"`
-	Phases Phases `yaml:"phases"`
+	States States `yaml:"states"`
 }
 
-// Phases maps temporal phases to managed-group aliases.
-type Phases struct {
-	Pending Phase `yaml:"pending,omitempty"`
-	Active  Phase `yaml:"active,omitempty"`
+// States maps aggregate subject states to membership assertions.
+type States struct {
+	Pending GroupAssertions `yaml:"pending,omitempty"`
+	Active  GroupAssertions `yaml:"active,omitempty"`
+	Settled GroupAssertions `yaml:"settled,omitempty"`
 }
 
-// Phase lists the managed groups required while an intent is in that phase.
-type Phase struct {
-	Groups []string `yaml:"groups,omitempty" jsonschema:"uniqueItems=true"`
+// GroupAssertions lists memberships to require or forbid in one subject state.
+type GroupAssertions struct {
+	Present []string `yaml:"present,omitempty" jsonschema:"uniqueItems=true"`
+	Absent  []string `yaml:"absent,omitempty"  jsonschema:"uniqueItems=true"`
 }
 
 // Reconcile controls polling and persisted retry behavior.
