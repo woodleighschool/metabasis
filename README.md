@@ -77,12 +77,16 @@ Only groups declared under `managed_groups` can be added or removed. Other Entra
 
 ## HTTP
 
-`run` serves only configured `/webhooks/...` paths plus:
+`run` serves configured `/webhooks/...` paths plus:
 
 - `/healthz`
 - `/readyz`
 
-There is no Web UI or administrator login.
+The `metrics_listen` address (default `:8081`) serves `/metrics`. It includes standard Go/process metrics and bounded Metabasis metrics for build information, webhook results, reconciliation results and duration, current intent phases, failed subjects, due subjects, and database state-collection success.
+
+Database-derived gauges are collected at scrape time. If that query fails, `/metrics` remains available, `metabasis_state_collection_success` is `0`, the stale database gauges are omitted, and the database error is logged.
+
+Read-only `intents` commands may run alongside the service. Webhook updates and reconciliation are serialized per subject through PostgreSQL advisory locks.
 
 ## Deployment from ADOverseas v2
 

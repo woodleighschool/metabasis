@@ -15,6 +15,11 @@ const testDatabaseURL = "METABASIS_TEST_DATABASE_URL"
 
 // Open returns an isolated migrated test store.
 func Open(t testing.TB) *store.Store {
+	return OpenWithMaxConnections(t, 10)
+}
+
+// OpenWithMaxConnections returns an isolated store with a bounded connection pool.
+func OpenWithMaxConnections(t testing.TB, maximum int32) *store.Store {
 	t.Helper()
 	baseURL := os.Getenv(testDatabaseURL)
 	if baseURL == "" {
@@ -23,7 +28,7 @@ func Open(t testing.TB) *store.Store {
 	databaseURL := Create(t, baseURL)
 	intentStore, err := store.Open(t.Context(), config.Database{
 		URL:               databaseURL,
-		MaxConnections:    10,
+		MaxConnections:    maximum,
 		MaxConnLifetime:   config.Duration{Duration: 30 * time.Minute},
 		MaxConnIdleTime:   config.Duration{Duration: 5 * time.Minute},
 		HealthCheckPeriod: config.Duration{Duration: time.Minute},

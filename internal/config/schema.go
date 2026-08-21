@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Version       int                   `yaml:"version"                 jsonschema:"enum=1"`
 	Listen        string                `yaml:"listen,omitempty"`
+	MetricsListen string                `yaml:"metrics_listen,omitempty"`
 	Connections   map[string]Connection `yaml:"connections"             jsonschema:"minProperties=1"`
 	Database      Database              `yaml:"database"`
 	Webhooks      map[string]Webhook    `yaml:"webhooks"                jsonschema:"minProperties=1"`
@@ -79,6 +80,9 @@ type Reconcile struct {
 func (c *Config) applyDefaults() {
 	if c.Listen == "" {
 		c.Listen = ":8080"
+	}
+	if c.MetricsListen == "" {
+		c.MetricsListen = ":8081"
 	}
 	if c.Database.MaxConnections == 0 {
 		c.Database.MaxConnections = 10

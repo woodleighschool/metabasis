@@ -63,6 +63,9 @@ func TestLoadStrictConfigurationAndDefaults(t *testing.T) {
 	if got, want := cfg.Listen, ":8080"; got != want {
 		t.Errorf("Listen = %q, want %q", got, want)
 	}
+	if got, want := cfg.MetricsListen, ":8081"; got != want {
+		t.Errorf("MetricsListen = %q, want %q", got, want)
+	}
 	if got, want := cfg.Reconcile.PollInterval.Duration, time.Minute; got != want {
 		t.Errorf("PollInterval = %v, want %v", got, want)
 	}

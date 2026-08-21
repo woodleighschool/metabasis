@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -18,7 +20,11 @@ import (
 	"github.com/woodleighschool/metabasis/internal/intent"
 )
 
-const migrationLockID int64 = 557901720260820001
+const (
+	migrationLockID      int64 = 557901720260820001
+	subjectLockNamespace       = "metabasis:subject"
+	unlockTimeout              = 5 * time.Second
+)
 
 //go:embed migrations/*.sql
 var migrations embed.FS
@@ -38,6 +44,28 @@ type State struct {
 // Store is the concrete PostgreSQL intent and reconciliation store.
 type Store struct {
 	pool *pgxpool.Pool
+}
+
+// MetricsSnapshot is the current persisted state exported to Prometheus.
+type MetricsSnapshot struct {
+	PendingIntentCount   int64
+	ActiveIntentCount    int64
+	EndedIntentCount     int64
+	CancelledIntentCount int64
+	FailedSubjectCount   int64
+	DueSubjectCount      int64
+}
+
+// SubjectSession holds one subject's advisory lock and its owning PostgreSQL connection.
+type SubjectSession struct {
+	connection *pgxpool.Conn
+	subject    string
+}
+
+type queryer interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+	QueryRow(context.Context, string, ...any) pgx.Row
 }
 
 // Open connects to PostgreSQL and optionally applies embedded migrations.
@@ -135,6 +163,16 @@ func (s *Store) UpsertIntent(ctx context.Context, accepted intent.Intent, now ti
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return fmt.Errorf("load previous intent: %w", err)
 	}
+	for _, subject := range uniqueSubjects(previousSubject, accepted.Subject) {
+		if _, err := transaction.Exec(
+			ctx,
+			"SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))",
+			subjectLockNamespace,
+			subject,
+		); err != nil {
+			return fmt.Errorf("lock subject %q: %w", subject, err)
+		}
+	}
 	_, err = transaction.Exec(ctx, `
 INSERT INTO intents (source, id, subject, starts_at, ends_at, cancelled, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
@@ -165,9 +203,70 @@ ON CONFLICT (subject) DO UPDATE SET next_retry_at = EXCLUDED.next_retry_at, upda
 	return nil
 }
 
+// LockSubject acquires a session advisory lock on a dedicated pool connection.
+func (s *Store) LockSubject(ctx context.Context, subject string) (*SubjectSession, error) {
+	connection, err := s.pool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquire subject connection: %w", err)
+	}
+	if _, err := connection.Exec(
+		ctx,
+		"SELECT pg_advisory_lock(hashtext($1), hashtext($2))",
+		subjectLockNamespace,
+		subject,
+	); err != nil {
+		return nil, errors.Join(fmt.Errorf("lock subject %q: %w", subject, err), discardConnection(connection))
+	}
+	return &SubjectSession{connection: connection, subject: subject}, nil
+}
+
+// Close unlocks the subject before returning its connection to the pool.
+func (s *SubjectSession) Close() error {
+	if s == nil || s.connection == nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), unlockTimeout)
+	var unlocked bool
+	err := s.connection.QueryRow(
+		ctx,
+		"SELECT pg_advisory_unlock(hashtext($1), hashtext($2))",
+		subjectLockNamespace,
+		s.subject,
+	).Scan(&unlocked)
+	cancel()
+	if err == nil && unlocked {
+		s.connection.Release()
+		s.connection = nil
+		return nil
+	}
+	connection := s.connection
+	s.connection = nil
+	closeErr := discardConnection(connection)
+	if err != nil {
+		return errors.Join(fmt.Errorf("unlock subject %q: %w", s.subject, err), closeErr)
+	}
+	return errors.Join(fmt.Errorf("unlock subject %q: lock was not held", s.subject), closeErr)
+}
+
+func discardConnection(connection *pgxpool.Conn) error {
+	rawConnection := connection.Hijack()
+	ctx, cancel := context.WithTimeout(context.Background(), unlockTimeout)
+	defer cancel()
+	return rawConnection.Close(ctx)
+}
+
 // ListIntents returns all accepted intents for a subject, including ended and cancelled intents.
 func (s *Store) ListIntents(ctx context.Context, subject string) ([]intent.Intent, error) {
-	rows, err := s.pool.Query(ctx, `
+	return listIntents(ctx, s.pool, subject)
+}
+
+// ListIntents returns all accepted intents through the locked session.
+func (s *SubjectSession) ListIntents(ctx context.Context) ([]intent.Intent, error) {
+	return listIntents(ctx, s.connection, s.subject)
+}
+
+func listIntents(ctx context.Context, database queryer, subject string) ([]intent.Intent, error) {
+	rows, err := database.Query(ctx, `
 SELECT source, id, subject, starts_at, ends_at, cancelled, created_at, updated_at
 FROM intents WHERE subject = $1 ORDER BY source, id`, subject)
 	if err != nil {
@@ -251,8 +350,17 @@ func (s *Store) listSubjectQuery(ctx context.Context, query string, args ...any)
 
 // GetState returns the operational state for a subject. A missing row yields zero state.
 func (s *Store) GetState(ctx context.Context, subject string) (State, error) {
+	return getState(ctx, s.pool, subject)
+}
+
+// GetState returns the subject state through the locked session.
+func (s *SubjectSession) GetState(ctx context.Context) (State, error) {
+	return getState(ctx, s.connection, s.subject)
+}
+
+func getState(ctx context.Context, database queryer, subject string) (State, error) {
 	state := State{Subject: subject}
-	err := s.pool.QueryRow(ctx, `
+	err := database.QueryRow(ctx, `
 SELECT last_attempt_at, last_success_at, last_error, next_transition_at, next_retry_at, retry_count, updated_at
 FROM reconciliation_state WHERE subject = $1`, subject).Scan(
 		&state.LastAttemptAt, &state.LastSuccessAt, &state.LastError, &state.NextTransitionAt,
@@ -269,7 +377,16 @@ FROM reconciliation_state WHERE subject = $1`, subject).Scan(
 
 // RecordSuccess persists a complete successful reconciliation outcome.
 func (s *Store) RecordSuccess(ctx context.Context, subject string, attemptedAt time.Time, nextTransition *time.Time) error {
-	_, err := s.pool.Exec(ctx, `
+	return recordSuccess(ctx, s.pool, subject, attemptedAt, nextTransition)
+}
+
+// RecordSuccess writes a successful outcome through the locked session.
+func (s *SubjectSession) RecordSuccess(ctx context.Context, attemptedAt time.Time, nextTransition *time.Time) error {
+	return recordSuccess(ctx, s.connection, s.subject, attemptedAt, nextTransition)
+}
+
+func recordSuccess(ctx context.Context, database queryer, subject string, attemptedAt time.Time, nextTransition *time.Time) error {
+	_, err := database.Exec(ctx, `
 INSERT INTO reconciliation_state (
     subject, last_attempt_at, last_success_at, last_error, next_transition_at, next_retry_at, retry_count, updated_at
 ) VALUES ($1, $2, $2, '', $3, NULL, 0, $2)
@@ -296,7 +413,30 @@ func (s *Store) RecordFailure(
 	nextTransition *time.Time,
 	nextRetry time.Time,
 ) error {
-	_, err := s.pool.Exec(ctx, `
+	return recordFailure(ctx, s.pool, subject, attemptedAt, message, nextTransition, nextRetry)
+}
+
+// RecordFailure writes a failed outcome through the locked session.
+func (s *SubjectSession) RecordFailure(
+	ctx context.Context,
+	attemptedAt time.Time,
+	message string,
+	nextTransition *time.Time,
+	nextRetry time.Time,
+) error {
+	return recordFailure(ctx, s.connection, s.subject, attemptedAt, message, nextTransition, nextRetry)
+}
+
+func recordFailure(
+	ctx context.Context,
+	database queryer,
+	subject string,
+	attemptedAt time.Time,
+	message string,
+	nextTransition *time.Time,
+	nextRetry time.Time,
+) error {
+	_, err := database.Exec(ctx, `
 INSERT INTO reconciliation_state (
     subject, last_attempt_at, last_error, next_transition_at, next_retry_at, retry_count, updated_at
 ) VALUES ($1, $2, $3, $4, $5, 1, $2)
@@ -311,6 +451,40 @@ ON CONFLICT (subject) DO UPDATE SET
 		return fmt.Errorf("record reconciliation failure: %w", err)
 	}
 	return nil
+}
+
+// CollectMetrics reads the durable intent and reconciliation state in one query.
+func (s *Store) CollectMetrics(ctx context.Context, now time.Time) (MetricsSnapshot, error) {
+	var snapshot MetricsSnapshot
+	err := s.pool.QueryRow(ctx, `
+SELECT
+    COUNT(*) FILTER (WHERE NOT cancelled AND $1 < starts_at),
+    COUNT(*) FILTER (WHERE NOT cancelled AND starts_at <= $1 AND $1 < ends_at),
+    COUNT(*) FILTER (WHERE NOT cancelled AND ends_at <= $1),
+    COUNT(*) FILTER (WHERE cancelled),
+    (SELECT COUNT(*) FROM reconciliation_state WHERE last_error <> ''),
+    (SELECT COUNT(*) FROM (
+        SELECT i.subject
+        FROM intents i
+        LEFT JOIN reconciliation_state r ON r.subject = i.subject
+        WHERE r.subject IS NULL
+        UNION
+        SELECT subject
+        FROM reconciliation_state
+        WHERE next_transition_at <= $1 OR next_retry_at <= $1
+    ) AS due)
+FROM intents`, now).Scan(
+		&snapshot.PendingIntentCount,
+		&snapshot.ActiveIntentCount,
+		&snapshot.EndedIntentCount,
+		&snapshot.CancelledIntentCount,
+		&snapshot.FailedSubjectCount,
+		&snapshot.DueSubjectCount,
+	)
+	if err != nil {
+		return MetricsSnapshot{}, fmt.Errorf("collect metrics state: %w", err)
+	}
+	return snapshot, nil
 }
 
 // NextWake returns the earliest persisted transition or retry after now.
@@ -361,5 +535,6 @@ func uniqueSubjects(values ...string) []string {
 		seen[value] = struct{}{}
 		result = append(result, value)
 	}
+	sort.Strings(result)
 	return result
 }

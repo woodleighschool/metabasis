@@ -18,6 +18,7 @@ import (
 	"github.com/woodleighschool/metabasis/internal/config"
 	"github.com/woodleighschool/metabasis/internal/httpapi"
 	"github.com/woodleighschool/metabasis/internal/intent"
+	"github.com/woodleighschool/metabasis/internal/metrics"
 	"github.com/woodleighschool/metabasis/internal/reconcile"
 )
 
@@ -101,7 +102,7 @@ func newPlanCommand(configPaths *[]string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			application, err := app.Build(command.Context(), cfg, false)
+			application, err := app.Build(command.Context(), cfg, false, nil)
 			if err != nil {
 				return fmt.Errorf("start metabasis read-only: %w", err)
 			}
@@ -133,13 +134,16 @@ func newRunCommand(configPaths *[]string) *cobra.Command {
 			}
 			logger := slog.New(slog.NewJSONHandler(command.ErrOrStderr(), &slog.HandlerOptions{Level: level}))
 			wake := make(chan struct{}, 1)
-			application, err := app.Build(command.Context(), cfg, true)
+			recorder := metrics.New(metrics.BuildInfo{Version: version, Revision: commit}, logger)
+			application, err := app.Build(command.Context(), cfg, true, recorder)
 			if err != nil {
 				return fmt.Errorf("start metabasis: %w", err)
 			}
 			defer application.Close()
-			handler := httpapi.NewHandler(cfg, application.Store, wake, logger)
-			return runService(command.Context(), cfg, application, handler, wake, logger)
+			handler := httpapi.NewHandler(cfg, application.Store, wake, logger, recorder)
+			metricsMux := http.NewServeMux()
+			metricsMux.Handle("GET /metrics", recorder.Handler())
+			return runService(command.Context(), cfg, application, handler, metricsMux, wake, logger)
 		},
 	}
 	command.Flags().StringVar(&logLevel, "log-level", "info", "log level: debug, info, warn, or error")
@@ -151,27 +155,38 @@ func runService(
 	cfg *config.Config,
 	application *app.App,
 	handler http.Handler,
+	metricsHandler http.Handler,
 	wake <-chan struct{},
 	logger *slog.Logger,
 ) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	server := &http.Server{
-		Addr:              cfg.Listen,
-		Handler:           handler,
-		ReadHeaderTimeout: 5 * time.Second,
-		IdleTimeout:       time.Minute,
+	servers := []*http.Server{
+		{
+			Addr:              cfg.Listen,
+			Handler:           handler,
+			ReadHeaderTimeout: 5 * time.Second,
+			IdleTimeout:       time.Minute,
+		},
+		{
+			Addr:              cfg.MetricsListen,
+			Handler:           metricsHandler,
+			ReadHeaderTimeout: 5 * time.Second,
+			IdleTimeout:       time.Minute,
+		},
 	}
-	serverErrors := make(chan error, 1)
-	go func() {
-		serverErrors <- server.ListenAndServe()
-	}()
+	serverErrors := make(chan error, len(servers))
+	for _, server := range servers {
+		go func() {
+			serverErrors <- server.ListenAndServe()
+		}()
+	}
 	reconcilerDone := make(chan struct{})
 	go func() {
 		reconcile.RunLoop(ctx, application.Reconciler, wake, cfg.Reconcile.PollInterval.Duration, logger)
 		close(reconcilerDone)
 	}()
-	logger.InfoContext(ctx, "Metabasis started", "version", version, "listen", cfg.Listen)
+	logger.InfoContext(ctx, "Metabasis started", "version", version, "listen", cfg.Listen, "metrics_listen", cfg.MetricsListen)
 
 	var runErr error
 	select {
@@ -184,8 +199,10 @@ func runService(
 	cancel()
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.WithoutCancel(parent), 10*time.Second)
 	defer shutdownCancel()
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		runErr = errors.Join(runErr, fmt.Errorf("shutdown HTTP server: %w", err))
+	for _, server := range servers {
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			runErr = errors.Join(runErr, fmt.Errorf("shutdown HTTP server on %s: %w", server.Addr, err))
+		}
 	}
 	select {
 	case <-reconcilerDone:
@@ -286,7 +303,7 @@ func buildOperationalApp(ctx context.Context, configPaths []string) (*app.App, e
 	if err != nil {
 		return nil, fmt.Errorf("load configuration: %w", err)
 	}
-	application, err := app.Build(ctx, cfg, true)
+	application, err := app.Build(ctx, cfg, true, nil)
 	if err != nil {
 		return nil, fmt.Errorf("start metabasis: %w", err)
 	}

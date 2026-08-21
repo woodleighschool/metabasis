@@ -1,6 +1,8 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/woodleighschool/metabasis/main/metabasis.schema.json
 ---
 version: 1
+listen: :8080
+metrics_listen: :8081
 
 connections:
   microsoft:

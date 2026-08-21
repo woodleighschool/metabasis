@@ -9,6 +9,7 @@ import (
 	"github.com/woodleighschool/metabasis/internal/config"
 	"github.com/woodleighschool/metabasis/internal/graph"
 	"github.com/woodleighschool/metabasis/internal/intent"
+	"github.com/woodleighschool/metabasis/internal/metrics"
 	"github.com/woodleighschool/metabasis/internal/planner"
 	"github.com/woodleighschool/metabasis/internal/store"
 )
@@ -32,15 +33,16 @@ type Service struct {
 	config    *config.Config
 	store     *store.Store
 	directory Directory
+	metrics   *metrics.Recorder
 	now       func() time.Time
 }
 
 // New creates a reconciliation service from validated configuration and concrete state.
-func New(cfg *config.Config, intentStore *store.Store, directory Directory) (*Service, error) {
+func New(cfg *config.Config, intentStore *store.Store, directory Directory, recorder *metrics.Recorder) (*Service, error) {
 	if cfg == nil || intentStore == nil || directory == nil {
 		return nil, fmt.Errorf("config, store, and directory are required")
 	}
-	return &Service{config: cfg, store: intentStore, directory: directory, now: time.Now}, nil
+	return &Service{config: cfg, store: intentStore, directory: directory, metrics: recorder, now: time.Now}, nil
 }
 
 // ReconcileAll reconciles every subject with an accepted intent.
@@ -64,36 +66,43 @@ func (s *Service) ReconcileDue(ctx context.Context) ([]Result, error) {
 // ReconcileSubject derives current desired state and applies only its managed-group diff.
 func (s *Service) ReconcileSubject(ctx context.Context, subject string) (result Result, err error) {
 	result.Subject = subject
+	observedAt := time.Now()
+	defer func() { s.metrics.RecordReconciliation(err, time.Since(observedAt)) }()
+	subjectSession, err := s.store.LockSubject(ctx, subject)
+	if err != nil {
+		return result, err
+	}
+	defer func() { err = errors.Join(err, subjectSession.Close()) }()
 	started := s.now().UTC()
-	state, err := s.store.GetState(ctx, subject)
+	state, err := subjectSession.GetState(ctx)
 	if err != nil {
 		return result, err
 	}
 	nextTransition := state.NextTransitionAt
-	intents, err := s.store.ListIntents(ctx, subject)
+	intents, err := subjectSession.ListIntents(ctx)
 	if err != nil {
-		return result, s.recordFailure(ctx, &result, state, started, nextTransition, err)
+		return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, err)
 	}
 	nextTransition = nextTransitionAt(intents, started)
 	snapshot, err := s.directory.Resolve(ctx, subject, s.config.Identity.Groups, s.config.ManagedGroups)
 	if err != nil {
-		return result, s.recordFailure(ctx, &result, state, started, nextTransition, err)
+		return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, err)
 	}
 	result.Plan, err = planner.Build(s.config, snapshot.User, intents, snapshot.ManagedGroups, started)
 	if err != nil {
-		return result, s.recordFailure(ctx, &result, state, started, nextTransition, err)
+		return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, err)
 	}
 	for _, alias := range result.Plan.AddGroups {
 		if err := s.directory.AddGroupMember(ctx, s.config.ManagedGroups[alias], snapshot.User.ID); err != nil {
-			return result, s.recordFailure(ctx, &result, state, started, nextTransition, fmt.Errorf("add managed group %q: %w", alias, err))
+			return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, fmt.Errorf("add managed group %q: %w", alias, err))
 		}
 	}
 	for _, alias := range result.Plan.RemoveGroups {
 		if err := s.directory.RemoveGroupMember(ctx, s.config.ManagedGroups[alias], snapshot.User.ID); err != nil {
-			return result, s.recordFailure(ctx, &result, state, started, nextTransition, fmt.Errorf("remove managed group %q: %w", alias, err))
+			return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, fmt.Errorf("remove managed group %q: %w", alias, err))
 		}
 	}
-	if err := s.store.RecordSuccess(ctx, subject, started, result.Plan.NextTransition); err != nil {
+	if err := subjectSession.RecordSuccess(ctx, started, result.Plan.NextTransition); err != nil {
 		return result, err
 	}
 	return result, nil
@@ -149,6 +158,7 @@ func (s *Service) reconcileSubjects(ctx context.Context, subjects []string) ([]R
 
 func (s *Service) recordFailure(
 	ctx context.Context,
+	subjectSession *store.SubjectSession,
 	result *Result,
 	state store.State,
 	attemptedAt time.Time,
@@ -164,7 +174,7 @@ func (s *Service) recordFailure(
 		s.config.Reconcile.RetryMax.Duration,
 		state.RetryCount,
 	))
-	if err := s.store.RecordFailure(ctx, result.Subject, attemptedAt, cause.Error(), nextTransition, nextRetry); err != nil {
+	if err := subjectSession.RecordFailure(ctx, attemptedAt, cause.Error(), nextTransition, nextRetry); err != nil {
 		return errors.Join(cause, err)
 	}
 	return cause

@@ -25,7 +25,7 @@ func TestWebhookAuthenticationValidationAndDurableAcceptance(t *testing.T) {
 		return nil
 	}
 	wake := make(chan struct{}, 1)
-	handler := newHandler(cfg, accept, func(context.Context) error { return nil }, wake, slog.New(slog.DiscardHandler))
+	handler := newHandler(cfg, accept, func(context.Context) error { return nil }, wake, slog.New(slog.DiscardHandler), nil)
 	body := `{"id":"SR-1","subject":"student@example.com","starts_at":"2026-09-12T08:00:00+10:00","ends_at":"2026-09-27T18:00:00+10:00","cancelled":false}`
 
 	unauthorized := httptest.NewRequest(http.MethodPost, "/webhooks/freshservice", bytes.NewBufferString(body))
@@ -72,6 +72,7 @@ func TestWebhookPersistenceFailureIsNotAcknowledgedOrWoken(t *testing.T) {
 		func(context.Context) error { return nil },
 		wake,
 		slog.New(slog.DiscardHandler),
+		nil,
 	)
 	body := `{"id":"SR-1","subject":"student@example.com","starts_at":"2026-09-12T08:00:00Z","ends_at":"2026-09-12T09:00:00Z"}`
 	request := httptest.NewRequest(http.MethodPost, "/webhooks/freshservice", bytes.NewBufferString(body))
@@ -99,6 +100,7 @@ func TestWebhookRejectsUnknownFieldsAndInvalidWindow(t *testing.T) {
 		func(context.Context) error { return nil },
 		make(chan struct{}, 1),
 		slog.New(slog.DiscardHandler),
+		nil,
 	)
 	tests := []string{
 		`{"id":"SR-1","subject":"student@example.com","starts_at":"2026-09-12T08:00:00Z","ends_at":"2026-09-12T07:00:00Z"}`,

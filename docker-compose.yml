@@ -21,6 +21,7 @@ services:
       ENTRA_OVERSEAS_MFA_GROUP_ID: ${ENTRA_OVERSEAS_MFA_GROUP_ID}
     ports:
       - "${METABASIS_PORT:-8080}:8080"
+      - "${METABASIS_METRICS_PORT:-8081}:8081"
     volumes:
       - ./config.yaml:/config.yaml:ro
     depends_on:

@@ -6,6 +6,7 @@ import (
 
 	"github.com/woodleighschool/metabasis/internal/config"
 	"github.com/woodleighschool/metabasis/internal/graph"
+	"github.com/woodleighschool/metabasis/internal/metrics"
 	"github.com/woodleighschool/metabasis/internal/reconcile"
 	"github.com/woodleighschool/metabasis/internal/store"
 )
@@ -17,7 +18,7 @@ type App struct {
 }
 
 // Build creates application components and optionally applies database migrations.
-func Build(ctx context.Context, cfg *config.Config, migrate bool) (*App, error) {
+func Build(ctx context.Context, cfg *config.Config, migrate bool, recorder *metrics.Recorder) (*App, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("config is required")
 	}
@@ -25,13 +26,14 @@ func Build(ctx context.Context, cfg *config.Config, migrate bool) (*App, error) 
 	if err != nil {
 		return nil, err
 	}
+	recorder.RegisterState(intentStore)
 	connection := cfg.Connections[cfg.Identity.Connection]
 	directory, err := graph.NewClient(connection)
 	if err != nil {
 		intentStore.Close()
 		return nil, err
 	}
-	reconciler, err := reconcile.New(cfg, intentStore, directory)
+	reconciler, err := reconcile.New(cfg, intentStore, directory, recorder)
 	if err != nil {
 		intentStore.Close()
 		return nil, err

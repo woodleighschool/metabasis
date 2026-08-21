@@ -55,7 +55,7 @@ func TestGraphFailurePersistsRetryAndRestartRecoversMissedTransition(t *testing.
 		snapshot: graph.Snapshot{User: domain.User{Present: true, ID: "user-id", Groups: []string{"students"}}},
 		err:      errors.New("Graph unavailable"),
 	}
-	service, err := New(cfg, intentStore, failingDirectory)
+	service, err := New(cfg, intentStore, failingDirectory, nil)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -78,7 +78,7 @@ func TestGraphFailurePersistsRetryAndRestartRecoversMissedTransition(t *testing.
 	recoveredDirectory := &fakeDirectory{
 		snapshot: graph.Snapshot{User: domain.User{Present: true, ID: "user-id", Groups: []string{"students"}}},
 	}
-	restarted, err := New(cfg, intentStore, recoveredDirectory)
+	restarted, err := New(cfg, intentStore, recoveredDirectory, nil)
 	if err != nil {
 		t.Fatalf("restart New() error = %v", err)
 	}
@@ -118,7 +118,7 @@ func TestReconciliationIsIdempotentWhenManagedMembershipMatches(t *testing.T) {
 		User:          domain.User{Present: true, ID: "user-id", Groups: []string{"staff"}},
 		ManagedGroups: []string{"overseas_access"},
 	}}
-	service, err := New(cfg, intentStore, directory)
+	service, err := New(cfg, intentStore, directory, nil)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -128,6 +128,61 @@ func TestReconciliationIsIdempotentWhenManagedMembershipMatches(t *testing.T) {
 	}
 	if len(directory.added) != 0 || len(directory.removed) != 0 {
 		t.Fatalf("Graph mutations: added=%v removed=%v", directory.added, directory.removed)
+	}
+}
+
+func TestReconciliationDoesNotRemoveAbsentManagedMembership(t *testing.T) {
+	t.Parallel()
+	intentStore := testdb.Open(t)
+	cfg := loadTestConfig(t)
+	now := time.Date(2026, 9, 1, 2, 0, 0, 0, time.UTC)
+	accepted := intent.Intent{
+		Source: "freshservice", ID: "SR-1", Subject: "staff@example.com",
+		StartsAt: now.Add(-2 * time.Hour), EndsAt: now.Add(-time.Hour),
+	}
+	if err := intentStore.UpsertIntent(t.Context(), accepted, now); err != nil {
+		t.Fatalf("UpsertIntent() error = %v", err)
+	}
+	directory := &fakeDirectory{snapshot: graph.Snapshot{
+		User: domain.User{Present: true, ID: "user-id", Groups: []string{"staff"}},
+	}}
+	service, err := New(cfg, intentStore, directory, nil)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	service.now = func() time.Time { return now }
+	if _, err := service.ReconcileSubject(t.Context(), accepted.Subject); err != nil {
+		t.Fatalf("ReconcileSubject() error = %v", err)
+	}
+	if len(directory.added) != 0 || len(directory.removed) != 0 {
+		t.Fatalf("Graph mutations: added=%v removed=%v", directory.added, directory.removed)
+	}
+}
+
+func TestReconciliationUsesLockedConnectionWithSingleConnectionPool(t *testing.T) {
+	t.Parallel()
+	intentStore := testdb.OpenWithMaxConnections(t, 1)
+	cfg := loadTestConfig(t)
+	now := time.Date(2026, 9, 1, 0, 30, 0, 0, time.UTC)
+	accepted := intent.Intent{
+		Source: "freshservice", ID: "SR-1", Subject: "staff@example.com",
+		StartsAt: now.Add(-time.Minute), EndsAt: now.Add(time.Hour),
+	}
+	if err := intentStore.UpsertIntent(t.Context(), accepted, now); err != nil {
+		t.Fatalf("UpsertIntent() error = %v", err)
+	}
+	directory := &fakeDirectory{snapshot: graph.Snapshot{
+		User: domain.User{Present: true, ID: "user-id", Groups: []string{"staff"}},
+	}}
+	service, err := New(cfg, intentStore, directory, nil)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	service.now = func() time.Time { return now }
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	if _, err := service.ReconcileSubject(ctx, accepted.Subject); err != nil {
+		t.Fatalf("ReconcileSubject() error = %v", err)
 	}
 }
 
@@ -147,7 +202,7 @@ func TestPlanEventDoesNotModifyPersistedIntentOrGraph(t *testing.T) {
 		User:          domain.User{Present: true, ID: "user-id", Groups: []string{"students"}},
 		ManagedGroups: []string{"overseas_access"},
 	}}
-	service, err := New(cfg, intentStore, directory)
+	service, err := New(cfg, intentStore, directory, nil)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}

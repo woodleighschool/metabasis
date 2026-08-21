@@ -13,6 +13,7 @@ import (
 
 	"github.com/woodleighschool/metabasis/internal/config"
 	"github.com/woodleighschool/metabasis/internal/intent"
+	"github.com/woodleighschool/metabasis/internal/metrics"
 	"github.com/woodleighschool/metabasis/internal/store"
 )
 
@@ -21,8 +22,8 @@ const maximumWebhookBody = 64 << 10
 type acceptFunc func(context.Context, intent.Intent, time.Time) error
 
 // NewHandler builds the operational HTTP surface for configured webhook sources and probes.
-func NewHandler(cfg *config.Config, intentStore *store.Store, wake chan<- struct{}, logger *slog.Logger) http.Handler {
-	return newHandler(cfg, intentStore.UpsertIntent, intentStore.Ping, wake, logger)
+func NewHandler(cfg *config.Config, intentStore *store.Store, wake chan<- struct{}, logger *slog.Logger, recorder *metrics.Recorder) http.Handler {
+	return newHandler(cfg, intentStore.UpsertIntent, intentStore.Ping, wake, logger, recorder)
 }
 
 func newHandler(
@@ -31,6 +32,7 @@ func newHandler(
 	ready func(context.Context) error,
 	wake chan<- struct{},
 	logger *slog.Logger,
+	recorder *metrics.Recorder,
 ) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(response http.ResponseWriter, _ *http.Request) {
@@ -47,7 +49,7 @@ func newHandler(
 	})
 	for source, webhook := range cfg.Webhooks {
 		mux.HandleFunc("POST "+webhook.Path, func(response http.ResponseWriter, request *http.Request) {
-			handleWebhook(response, request, source, webhook.BearerToken, accept, wake, logger)
+			handleWebhook(response, request, source, webhook.BearerToken, accept, wake, logger, recorder)
 		})
 	}
 	return mux
@@ -61,8 +63,10 @@ func handleWebhook(
 	accept acceptFunc,
 	wake chan<- struct{},
 	logger *slog.Logger,
+	recorder *metrics.Recorder,
 ) {
 	if !validBearerToken(request.Header.Get("Authorization"), bearerToken) {
+		recorder.RecordWebhook(source, metrics.WebhookUnauthorized)
 		response.Header().Set("WWW-Authenticate", "Bearer")
 		writeError(response, http.StatusUnauthorized, "invalid authentication")
 		return
@@ -72,24 +76,29 @@ func handleWebhook(
 	decoder.DisallowUnknownFields()
 	var accepted intent.Intent
 	if err := decoder.Decode(&accepted); err != nil {
+		recorder.RecordWebhook(source, metrics.WebhookInvalid)
 		writeError(response, http.StatusBadRequest, "invalid JSON body")
 		return
 	}
 	var extra any
 	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		recorder.RecordWebhook(source, metrics.WebhookInvalid)
 		writeError(response, http.StatusBadRequest, "body must contain one JSON object")
 		return
 	}
 	accepted.Source = source
 	if err := accepted.Validate(); err != nil {
+		recorder.RecordWebhook(source, metrics.WebhookInvalid)
 		writeError(response, http.StatusBadRequest, err.Error())
 		return
 	}
 	if err := accept(request.Context(), accepted, time.Now().UTC()); err != nil {
+		recorder.RecordWebhook(source, metrics.WebhookError)
 		logger.ErrorContext(request.Context(), "persist webhook intent", "source", source, "error", err)
 		writeError(response, http.StatusInternalServerError, "failed to persist intent")
 		return
 	}
+	recorder.RecordWebhook(source, metrics.WebhookAccepted)
 	select {
 	case wake <- struct{}{}:
 	default:
