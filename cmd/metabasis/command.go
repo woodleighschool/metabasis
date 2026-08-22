@@ -183,7 +183,7 @@ func runService(
 	}
 	reconcilerDone := make(chan struct{})
 	go func() {
-		reconcile.RunLoop(ctx, application.Reconciler, wake, cfg.Reconcile.PollInterval.Duration, logger)
+		runLoop(ctx, cfg.Reconcile.PollInterval.Duration, application.Reconciler, wake, logger)
 		close(reconcilerDone)
 	}()
 	logger.InfoContext(ctx, "service started", "version", version, "listen", cfg.Listen, "metrics_listen", cfg.MetricsListen)

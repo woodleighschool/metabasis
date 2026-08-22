@@ -1,16 +1,23 @@
-package reconcile
+package main
 
 import (
 	"context"
 	"log/slog"
 	"time"
+
+	"github.com/woodleighschool/metabasis/internal/reconcile"
 )
 
-// RunLoop reconciles startup state, then wakes for accepted intents, transitions, retries, and polling.
-func RunLoop(ctx context.Context, service *Service, wake <-chan struct{}, pollInterval time.Duration, logger *slog.Logger) {
+type reconciler interface {
+	ReconcileAll(context.Context) ([]reconcile.Result, error)
+	ReconcileDue(context.Context) ([]reconcile.Result, error)
+	NextWake(context.Context) (*time.Time, error)
+}
+
+func runLoop(ctx context.Context, interval time.Duration, service reconciler, wake <-chan struct{}, logger *slog.Logger) {
 	runCycle(ctx, service.ReconcileAll, logger)
 	for ctx.Err() == nil {
-		delay := pollInterval
+		delay := interval
 		if next, err := service.NextWake(ctx); err != nil {
 			logger.ErrorContext(ctx, "calculate next reconciliation wake", "error", err)
 		} else if next != nil {
@@ -40,9 +47,16 @@ func RunLoop(ctx context.Context, service *Service, wake <-chan struct{}, pollIn
 	}
 }
 
-func runCycle(ctx context.Context, reconcile func(context.Context) ([]Result, error), logger *slog.Logger) {
+func runCycle(
+	ctx context.Context,
+	reconcileSubjects func(context.Context) ([]reconcile.Result, error),
+	logger *slog.Logger,
+) {
 	started := time.Now()
-	results, err := reconcile(ctx)
+	results, err := reconcileSubjects(ctx)
+	if ctx.Err() != nil {
+		return
+	}
 	for _, result := range results {
 		attributes := []any{
 			"subject", result.Subject,
@@ -50,15 +64,18 @@ func runCycle(ctx context.Context, reconcile func(context.Context) ([]Result, er
 			"add_groups", result.Plan.AddGroups,
 			"remove_groups", result.Plan.RemoveGroups,
 		}
-		if result.Error != "" {
+		switch {
+		case result.Error != "":
 			logger.WarnContext(ctx, "subject reconciliation failed", append(attributes, "error", result.Error)...)
-		} else {
+		case len(result.Plan.AddGroups) != 0 || len(result.Plan.RemoveGroups) != 0:
 			logger.InfoContext(ctx, "subject reconciled", attributes...)
+		default:
+			logger.DebugContext(ctx, "subject reconciled", attributes...)
 		}
 	}
 	if err != nil {
 		logger.ErrorContext(ctx, "reconciliation cycle failed", "subjects", len(results), "duration", time.Since(started), "error", err)
 		return
 	}
-	logger.InfoContext(ctx, "reconciliation cycle complete", "subjects", len(results), "duration", time.Since(started))
+	logger.DebugContext(ctx, "reconciliation cycle complete", "subjects", len(results), "duration", time.Since(started))
 }
