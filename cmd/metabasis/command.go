@@ -104,7 +104,7 @@ func newPlanCommand(configPaths *[]string) *cobra.Command {
 			}
 			application, err := app.Build(command.Context(), cfg, false, nil)
 			if err != nil {
-				return fmt.Errorf("start metabasis read-only: %w", err)
+				return fmt.Errorf("start read-only service: %w", err)
 			}
 			plan, planErr := application.Reconciler.PlanEvent(command.Context(), event)
 			writeErr := writePlan(command.OutOrStdout(), output, plan)
@@ -137,7 +137,7 @@ func newRunCommand(configPaths *[]string) *cobra.Command {
 			recorder := metrics.New(metrics.BuildInfo{Version: version, Revision: commit}, logger)
 			application, err := app.Build(command.Context(), cfg, true, recorder)
 			if err != nil {
-				return fmt.Errorf("start metabasis: %w", err)
+				return fmt.Errorf("start service: %w", err)
 			}
 			defer application.Close()
 			handler := httpapi.NewHandler(cfg, application.Store, wake, logger, recorder)
@@ -186,7 +186,7 @@ func runService(
 		reconcile.RunLoop(ctx, application.Reconciler, wake, cfg.Reconcile.PollInterval.Duration, logger)
 		close(reconcilerDone)
 	}()
-	logger.InfoContext(ctx, "Metabasis started", "version", version, "listen", cfg.Listen, "metrics_listen", cfg.MetricsListen)
+	logger.InfoContext(ctx, "service started", "version", version, "listen", cfg.Listen, "metrics_listen", cfg.MetricsListen)
 
 	var runErr error
 	select {
@@ -305,7 +305,7 @@ func buildOperationalApp(ctx context.Context, configPaths []string) (*app.App, e
 	}
 	application, err := app.Build(ctx, cfg, true, nil)
 	if err != nil {
-		return nil, fmt.Errorf("start metabasis: %w", err)
+		return nil, fmt.Errorf("start service: %w", err)
 	}
 	return application, nil
 }

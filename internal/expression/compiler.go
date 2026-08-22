@@ -13,7 +13,7 @@ import (
 
 const userTypeName = "domain.User"
 
-// Compiler validates identity policy expressions against Metabasis's typed CEL contract.
+// Compiler validates identity policy expressions against the typed CEL contract.
 type Compiler struct {
 	environment *cel.Env
 }

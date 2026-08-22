@@ -26,7 +26,7 @@ const (
 	WebhookError        WebhookResult = "error"
 )
 
-// BuildInfo identifies the running Metabasis binary.
+// BuildInfo identifies the running binary.
 type BuildInfo struct {
 	Version  string
 	Revision string
@@ -41,7 +41,7 @@ type Recorder struct {
 	reconciliationDuration *prometheus.HistogramVec
 }
 
-// New creates an isolated registry with standard runtime and Metabasis metrics.
+// New creates an isolated registry with standard runtime and service metrics.
 func New(build BuildInfo, logger *slog.Logger) *Recorder {
 	if logger == nil {
 		logger = slog.New(slog.DiscardHandler)
@@ -51,7 +51,7 @@ func New(build BuildInfo, logger *slog.Logger) *Recorder {
 
 	buildInfo := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "metabasis_build_info",
-		Help: "Build information for the running Metabasis process.",
+		Help: "Build information for the running process.",
 	}, []string{"version", "revision", "goversion"})
 	buildInfo.WithLabelValues(build.Version, build.Revision, runtime.Version()).Set(1)
 
@@ -143,7 +143,7 @@ func newStateCollector(state stateReader, logger *slog.Logger) *stateCollector {
 		),
 		successDesc: prometheus.NewDesc(
 			"metabasis_state_collection_success",
-			"Whether the latest scrape collected persisted Metabasis state.",
+			"Whether the latest scrape collected persisted application state.",
 			nil, nil,
 		),
 	}

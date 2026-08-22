@@ -4,12 +4,12 @@
 
 Reconciles temporary Microsoft Entra group membership from webhook-driven intents and scheduled transitions.
 
-Metabasis accepts a small canonical intent, persists it in PostgreSQL, derives the subject's aggregate temporal state, and applies only the Entra group membership assertions selected by configuration. The scheduler only decides when to recalculate them.
+Accepts a small canonical intent, persists it in PostgreSQL, derives the subject's aggregate temporal state, and applies only the Entra group membership assertions selected by configuration. The scheduler only decides when to recalculate them.
 
 ```mermaid
 flowchart TD
   subgraph intake["Intent intake"]
-    freshservice["Freshservice<br/>travel request"] --> webhook["Metabasis<br/>webhook"]
+    freshservice["Freshservice<br/>travel request"] --> webhook["Intent<br/>webhook"]
     webhook --> intent[("Validate and persist<br/>the intent")]
   end
 
@@ -69,7 +69,7 @@ Each configured webhook source uses bearer authentication. Repeated `(source, id
 
 ## Reconciliation
 
-The first matching CEL rule applies to a subject. Metabasis selects one aggregate state across all known intents: active takes precedence over pending, while settled means every known intent has ended or was cancelled. A subject with no known intents produces no membership assertions.
+The first matching CEL rule applies to a subject. The service selects one aggregate state across all known intents: active takes precedence over pending, while settled means every known intent has ended or was cancelled. A subject with no known intents produces no membership assertions.
 
 `identity.groups` maps provider group IDs to aliases available to CEL and membership assertions. `present` adds a missing membership, `absent` removes an existing membership, and an unmentioned alias is preserved. Writable aliases must resolve to exactly one group ID. Adds are attempted before removals; Graph failures leave the accepted intent intact and persist retry state.
 
@@ -82,7 +82,7 @@ The first matching CEL rule applies to a subject. Metabasis selects one aggregat
 - `/healthz`
 - `/readyz`
 
-The `metrics_listen` address (default `:8081`) serves `/metrics`. It includes standard Go/process metrics and bounded Metabasis metrics for build information, webhook results, reconciliation results and duration, current intent phases, failed subjects, due subjects, and database state-collection success.
+The `metrics_listen` address (default `:8081`) serves `/metrics`. It includes standard Go/process metrics and bounded service metrics for build information, webhook results, reconciliation results and duration, current intent phases, failed subjects, due subjects, and database state-collection success.
 
 Database-derived gauges are collected at scrape time. If that query fails, `/metrics` remains available, `metabasis_state_collection_success` is `0`, the stale database gauges are omitted, and the database error is logged.
 

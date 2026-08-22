@@ -45,7 +45,7 @@ metabasis_reconciliation_due_subjects 3
 # HELP metabasis_reconciliation_failed_subjects Subjects whose most recent reconciliation failed.
 # TYPE metabasis_reconciliation_failed_subjects gauge
 metabasis_reconciliation_failed_subjects 1
-# HELP metabasis_state_collection_success Whether the latest scrape collected persisted Metabasis state.
+# HELP metabasis_state_collection_success Whether the latest scrape collected persisted application state.
 # TYPE metabasis_state_collection_success gauge
 metabasis_state_collection_success 1
 `
@@ -69,7 +69,7 @@ func TestStateCollectorKeepsScrapeHealthyWhenDatabaseCollectionFails(t *testing.
 		slog.New(slog.NewTextHandler(&logs, nil)),
 	)
 	want := `
-# HELP metabasis_state_collection_success Whether the latest scrape collected persisted Metabasis state.
+# HELP metabasis_state_collection_success Whether the latest scrape collected persisted application state.
 # TYPE metabasis_state_collection_success gauge
 metabasis_state_collection_success 0
 `
@@ -109,7 +109,7 @@ func TestRecorderUsesBoundedEventResults(t *testing.T) {
 		t.Errorf("failed reconciliations = %v, want 1", got)
 	}
 	buildInfo := fmt.Sprintf(`
-# HELP metabasis_build_info Build information for the running Metabasis process.
+# HELP metabasis_build_info Build information for the running process.
 # TYPE metabasis_build_info gauge
 metabasis_build_info{goversion=%q,revision="abc123",version="3.1.0"} 1
 `, runtime.Version())

@@ -6,7 +6,7 @@ import (
 	"github.com/woodleighschool/metabasis/internal/expression"
 )
 
-// Config is Metabasis's complete versioned configuration.
+// Config is the complete versioned configuration.
 type Config struct {
 	Version       int                   `yaml:"version"                 jsonschema:"enum=2"`
 	Listen        string                `yaml:"listen,omitempty"`
