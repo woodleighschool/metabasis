@@ -1,5 +1,19 @@
 # Changelog
 
+## [3.1.1](https://github.com/woodleighschool/metabasis/compare/3.1.0...3.1.1) (2026-08-22)
+
+
+### Documentation
+
+* add repository agent guidance ([15b7bb7](https://github.com/woodleighschool/metabasis/commit/15b7bb7337924102c4eb2a006f8cd655d2f4dc2f))
+
+
+### Miscellaneous Chores
+
+* align ignore rules ([7c757cc](https://github.com/woodleighschool/metabasis/commit/7c757cc8d6cfd09c3337edc6306fb26033b0da7a))
+* align repository conventions ([22d1a8c](https://github.com/woodleighschool/metabasis/commit/22d1a8c1946c2e998ff777b7ac37e1d1ccda154d))
+* **release-please:** sync configuration ([654ed32](https://github.com/woodleighschool/metabasis/commit/654ed328846018f0f3476daf2d2e90ad48c82099))
+
 ## [3.1.0](https://github.com/woodleighschool/metabasis/compare/3.0.0...3.1.0) (2026-08-21)
 
 
