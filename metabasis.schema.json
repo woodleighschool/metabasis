@@ -11,6 +11,15 @@
             2
           ]
         },
+        "log_level": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ]
+        },
         "listen": {
           "type": "string"
         },
@@ -51,7 +60,6 @@
       "required": [
         "version",
         "connections",
-        "database",
         "webhooks",
         "identity",
         "rules"
@@ -126,10 +134,7 @@
         }
       },
       "additionalProperties": false,
-      "type": "object",
-      "required": [
-        "url"
-      ]
+      "type": "object"
     },
     "GroupAssertions": {
       "properties": {

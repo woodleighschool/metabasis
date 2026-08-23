@@ -1,8 +1,6 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/woodleighschool/metabasis/main/metabasis.schema.json
 ---
 version: 2
-listen: :8080
-metrics_listen: :8081
 
 connections:
   microsoft:
@@ -11,13 +9,10 @@ connections:
     client_id: ${MICROSOFT_CLIENT_ID}
     client_secret: ${MICROSOFT_CLIENT_SECRET}
 
-database:
-  url: ${DATABASE_URL}
-
 webhooks:
-  travel_system:
-    path: /webhooks/travel-system
-    bearer_token: ${TRAVEL_SYSTEM_WEBHOOK_TOKEN}
+  freshservice:
+    path: /webhooks/freshservice
+    bearer_token: ${FRESHSERVICE_WEBHOOK_TOKEN}
 
 identity:
   connection: microsoft
@@ -80,8 +75,3 @@ rules:
           - block_outside_australia
         absent:
           - allow_overseas
-
-reconcile:
-  poll_interval: 1m
-  retry_initial: 30s
-  retry_max: 15m

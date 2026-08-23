@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"net/url"
 	"regexp"
 	"sort"
@@ -17,6 +18,9 @@ var identifierPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]*$`)
 func (c *Config) validateAndCompile() error {
 	if c.Version != supportedVersion {
 		return fmt.Errorf("config version must be %d, found %d", supportedVersion, c.Version)
+	}
+	if err := c.validateLogLevel(); err != nil {
+		return err
 	}
 	if strings.TrimSpace(c.Listen) == "" {
 		return fmt.Errorf("listen is required")
@@ -37,6 +41,22 @@ func (c *Config) validateAndCompile() error {
 		return err
 	}
 	return c.validateReconcile()
+}
+
+func (c *Config) validateLogLevel() error {
+	switch c.LogLevel {
+	case "debug":
+		c.ParsedLevel = slog.LevelDebug
+	case "info":
+		c.ParsedLevel = slog.LevelInfo
+	case "warn":
+		c.ParsedLevel = slog.LevelWarn
+	case "error":
+		c.ParsedLevel = slog.LevelError
+	default:
+		return fmt.Errorf("log_level must be debug, info, warn, or error")
+	}
+	return nil
 }
 
 func (c *Config) validateConnections() error {

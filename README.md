@@ -53,6 +53,32 @@ metabasis reconcile --all
 
 Multiple `--config` flags apply overlays in order. Mappings merge recursively; lists and scalar values replace earlier values. Configuration is strict, and environment placeholders must occupy a whole YAML value such as `${MICROSOFT_CLIENT_SECRET}`.
 
+The published container runs the service from a mounted policy and app-prefixed environment:
+
+```bash
+docker run --rm \
+  --env-file .env \
+  --volume "$PWD/config.yaml:/config.yaml:ro" \
+  ghcr.io/woodleighschool/metabasis:rolling
+```
+
+Runtime settings resolve from `METABASIS_*` environment variables, then the corresponding YAML value, then the default. CLI flags select configuration files or command behaviour rather than mirroring runtime settings.
+
+| Environment variable                          | YAML fallback                       | Default  |
+| --------------------------------------------- | ----------------------------------- | -------- |
+| `METABASIS_LOG_LEVEL`                         | `log_level`                         | `info`   |
+| `METABASIS_LISTEN`                            | `listen`                            | `:8080`  |
+| `METABASIS_METRICS_LISTEN`                    | `metrics_listen`                    | `:8081`  |
+| `METABASIS_DATABASE_URL`                      | `database.url`                      | required |
+| `METABASIS_DATABASE_MIN_CONNECTIONS`          | `database.min_connections`          | `0`      |
+| `METABASIS_DATABASE_MAX_CONNECTIONS`          | `database.max_connections`          | `10`     |
+| `METABASIS_DATABASE_MAX_CONNECTION_LIFETIME`  | `database.max_connection_lifetime`  | `30m`    |
+| `METABASIS_DATABASE_MAX_CONNECTION_IDLE_TIME` | `database.max_connection_idle_time` | `5m`     |
+| `METABASIS_DATABASE_HEALTH_CHECK_PERIOD`      | `database.health_check_period`      | `1m`     |
+| `METABASIS_RECONCILE_POLL_INTERVAL`           | `reconcile.poll_interval`           | `1m`     |
+| `METABASIS_RECONCILE_RETRY_INITIAL`           | `reconcile.retry_initial`           | `30s`    |
+| `METABASIS_RECONCILE_RETRY_MAX`               | `reconcile.retry_max`               | `15m`    |
+
 Daemon mode writes structured JSON to stderr. Lifecycle and material reconciliation events use `info`, warnings and failures use `warn` or `error`, and successful cycle summaries plus routine no-op evaluations use `debug`.
 
 The canonical webhook body is:

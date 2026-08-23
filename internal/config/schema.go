@@ -1,6 +1,8 @@
 package config
 
 import (
+	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/woodleighschool/metabasis/internal/expression"
@@ -9,15 +11,17 @@ import (
 // Config is the complete versioned configuration.
 type Config struct {
 	Version       int                   `yaml:"version"                 jsonschema:"enum=2"`
-	Listen        string                `yaml:"listen,omitempty"`
-	MetricsListen string                `yaml:"metrics_listen,omitempty"`
+	LogLevel      string                `yaml:"log_level,omitempty"      env:"LOG_LEVEL"       jsonschema:"enum=debug,enum=info,enum=warn,enum=error"`
+	Listen        string                `yaml:"listen,omitempty"         env:"LISTEN"`
+	MetricsListen string                `yaml:"metrics_listen,omitempty" env:"METRICS_LISTEN"`
 	Connections   map[string]Connection `yaml:"connections"             jsonschema:"minProperties=1"`
-	Database      Database              `yaml:"database"`
+	Database      Database              `yaml:"database,omitempty"      envPrefix:"DATABASE_"`
 	Webhooks      map[string]Webhook    `yaml:"webhooks"                jsonschema:"minProperties=1"`
 	Identity      Identity              `yaml:"identity"`
 	Rules         []Rule                `yaml:"rules"                   jsonschema:"minItems=1"`
-	Reconcile     Reconcile             `yaml:"reconcile,omitempty"`
+	Reconcile     Reconcile             `yaml:"reconcile,omitempty"     envPrefix:"RECONCILE_"`
 	Programs      []expression.Program  `yaml:"-"`
+	ParsedLevel   slog.Level            `yaml:"-" jsonschema:"-"`
 }
 
 // Connection contains credentials for a remote API.
@@ -31,12 +35,12 @@ type Connection struct {
 
 // Database configures the PostgreSQL connection pool.
 type Database struct {
-	URL               string   `yaml:"url"`
-	MinConnections    int32    `yaml:"min_connections,omitempty"     jsonschema:"minimum=0"`
-	MaxConnections    int32    `yaml:"max_connections,omitempty"     jsonschema:"minimum=1"`
-	MaxConnLifetime   Duration `yaml:"max_connection_lifetime,omitempty"`
-	MaxConnIdleTime   Duration `yaml:"max_connection_idle_time,omitempty"`
-	HealthCheckPeriod Duration `yaml:"health_check_period,omitempty"`
+	URL               string   `yaml:"url,omitempty"                     env:"URL"`
+	MinConnections    int32    `yaml:"min_connections,omitempty"         env:"MIN_CONNECTIONS"         jsonschema:"minimum=0"`
+	MaxConnections    int32    `yaml:"max_connections,omitempty"         env:"MAX_CONNECTIONS"         jsonschema:"minimum=1"`
+	MaxConnLifetime   Duration `yaml:"max_connection_lifetime,omitempty" env:"MAX_CONNECTION_LIFETIME"`
+	MaxConnIdleTime   Duration `yaml:"max_connection_idle_time,omitempty" env:"MAX_CONNECTION_IDLE_TIME"`
+	HealthCheckPeriod Duration `yaml:"health_check_period,omitempty"      env:"HEALTH_CHECK_PERIOD"`
 }
 
 // Webhook defines one canonical intent source and its authentication token.
@@ -73,12 +77,15 @@ type GroupAssertions struct {
 
 // Reconcile controls polling and persisted retry behavior.
 type Reconcile struct {
-	PollInterval Duration `yaml:"poll_interval,omitempty"`
-	RetryInitial Duration `yaml:"retry_initial,omitempty"`
-	RetryMax     Duration `yaml:"retry_max,omitempty"`
+	PollInterval Duration `yaml:"poll_interval,omitempty" env:"POLL_INTERVAL"`
+	RetryInitial Duration `yaml:"retry_initial,omitempty" env:"RETRY_INITIAL"`
+	RetryMax     Duration `yaml:"retry_max,omitempty"     env:"RETRY_MAX"`
 }
 
 func (c *Config) applyDefaults() {
+	if c.LogLevel == "" {
+		c.LogLevel = "info"
+	}
 	if c.Listen == "" {
 		c.Listen = ":8080"
 	}
@@ -106,4 +113,11 @@ func (c *Config) applyDefaults() {
 	if !c.Reconcile.RetryMax.set {
 		c.Reconcile.RetryMax.Duration = 15 * time.Minute
 	}
+}
+
+func (c *Config) normalize() {
+	c.LogLevel = strings.ToLower(strings.TrimSpace(c.LogLevel))
+	c.Listen = strings.TrimSpace(c.Listen)
+	c.MetricsListen = strings.TrimSpace(c.MetricsListen)
+	c.Database.URL = strings.TrimSpace(c.Database.URL)
 }

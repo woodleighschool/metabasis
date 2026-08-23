@@ -9,17 +9,18 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/caarlos0/env/v11"
 	"go.yaml.in/yaml/v4"
 )
 
 var environmentPlaceholder = regexp.MustCompile(`^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$`)
 
-// Load merges, substitutes, validates, and compiles configuration files in order.
+// Load merges files in order, resolves environment over YAML over defaults, then validates and compiles the result.
 func Load(paths ...string) (*Config, error) {
-	return load(paths, os.LookupEnv)
+	return load(paths, currentEnvironment())
 }
 
-func load(paths []string, lookup func(string) (string, bool)) (*Config, error) {
+func load(paths []string, environment map[string]string) (*Config, error) {
 	if len(paths) == 0 {
 		return nil, fmt.Errorf("at least one config file is required")
 	}
@@ -40,7 +41,10 @@ func load(paths []string, lookup func(string) (string, bool)) (*Config, error) {
 		mergeNode(document.Content[0], fragment.Content[0])
 	}
 
-	if err := substituteEnvironment(&document, lookup); err != nil {
+	if err := substituteEnvironment(&document, func(name string) (string, bool) {
+		value, ok := environment[name]
+		return value, ok
+	}); err != nil {
 		return nil, err
 	}
 
@@ -68,10 +72,28 @@ func load(paths []string, lookup func(string) (string, bool)) (*Config, error) {
 	}
 
 	cfg.applyDefaults()
+	if err := env.ParseWithOptions(&cfg, env.Options{
+		Environment: environment,
+		Prefix:      "METABASIS_",
+	}); err != nil {
+		return nil, fmt.Errorf("parse environment: %w", err)
+	}
+	cfg.normalize()
 	if err := cfg.validateAndCompile(); err != nil {
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+func currentEnvironment() map[string]string {
+	environment := make(map[string]string)
+	for _, entry := range os.Environ() {
+		name, value, ok := strings.Cut(entry, "=")
+		if ok {
+			environment[name] = value
+		}
+	}
+	return environment
 }
 
 func readDocument(path string) (yaml.Node, error) {

@@ -118,21 +118,16 @@ func newPlanCommand(configPaths *[]string) *cobra.Command {
 }
 
 func newRunCommand(configPaths *[]string) *cobra.Command {
-	var logLevel string
 	command := &cobra.Command{
 		Use:   "run",
 		Short: "Serve webhooks and reconcile scheduled identity state",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
-			level, err := parseLogLevel(logLevel)
-			if err != nil {
-				return err
-			}
 			cfg, err := config.Load((*configPaths)...)
 			if err != nil {
 				return fmt.Errorf("load configuration: %w", err)
 			}
-			logger := slog.New(slog.NewJSONHandler(command.ErrOrStderr(), &slog.HandlerOptions{Level: level}))
+			logger := slog.New(slog.NewJSONHandler(command.ErrOrStderr(), &slog.HandlerOptions{Level: cfg.ParsedLevel}))
 			wake := make(chan struct{}, 1)
 			recorder := metrics.New(metrics.BuildInfo{Version: version, Revision: commit}, logger)
 			application, err := app.Build(command.Context(), cfg, true, recorder)
@@ -146,7 +141,6 @@ func newRunCommand(configPaths *[]string) *cobra.Command {
 			return runService(command.Context(), cfg, application, handler, metricsMux, wake, logger)
 		},
 	}
-	command.Flags().StringVar(&logLevel, "log-level", "info", "log level: debug, info, warn, or error")
 	return command
 }
 
@@ -374,19 +368,4 @@ func soleWebhookSource(cfg *config.Config) (string, error) {
 		return source, nil
 	}
 	return "", fmt.Errorf("plan requires a configured webhook source")
-}
-
-func parseLogLevel(value string) (slog.Level, error) {
-	switch strings.ToLower(value) {
-	case "debug":
-		return slog.LevelDebug, nil
-	case "info":
-		return slog.LevelInfo, nil
-	case "warn":
-		return slog.LevelWarn, nil
-	case "error":
-		return slog.LevelError, nil
-	default:
-		return 0, fmt.Errorf("log level must be debug, info, warn, or error")
-	}
 }

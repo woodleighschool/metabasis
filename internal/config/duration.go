@@ -2,12 +2,13 @@ package config
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"go.yaml.in/yaml/v4"
 )
 
-// Duration is a YAML duration parsed with time.ParseDuration.
+// Duration is a configuration duration parsed with time.ParseDuration.
 type Duration struct {
 	time.Duration
 
@@ -16,13 +17,18 @@ type Duration struct {
 
 // UnmarshalYAML parses a Go duration string.
 func (d *Duration) UnmarshalYAML(node *yaml.Node) error {
-	var value string
-	if err := node.Decode(&value); err != nil {
-		return fmt.Errorf("duration must be a string: %w", err)
+	if node.Kind != yaml.ScalarNode {
+		return fmt.Errorf("duration must be a string")
 	}
+	return d.UnmarshalText([]byte(node.Value))
+}
+
+// UnmarshalText parses a Go duration from a configuration value.
+func (d *Duration) UnmarshalText(text []byte) error {
+	value := strings.TrimSpace(string(text))
 	parsed, err := time.ParseDuration(value)
 	if err != nil {
-		return fmt.Errorf("parse duration %q: %w", value, err)
+		return fmt.Errorf("invalid duration %q: %w", value, err)
 	}
 	d.Duration = parsed
 	d.set = true
