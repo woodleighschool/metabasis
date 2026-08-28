@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.1.2](https://github.com/woodleighschool/metabasis/compare/3.1.1...3.1.2) (2026-08-28)
+
+
+### Documentation
+
+* clarify usage and releases ([eac3ac2](https://github.com/woodleighschool/metabasis/commit/eac3ac28dd3c80110b9ab1ee21b793fc7c923785))
+
+
+### Continuous Integration
+
+* **github-action:** update action docker/github-builder (v1.16.0 → v1.17.0) ([#117](https://github.com/woodleighschool/metabasis/issues/117)) ([e4e6211](https://github.com/woodleighschool/metabasis/commit/e4e6211d79bfabf779428c6e98ed5e24f71c151f))
+
+
+### Miscellaneous Chores
+
+* **mise:** update tool oxfmt (0.64.0 → 0.65.0) ([#119](https://github.com/woodleighschool/metabasis/issues/119)) ([1815ad8](https://github.com/woodleighschool/metabasis/commit/1815ad8caf210e60347edc57ecd3d472842e5e57))
+
 ## [3.1.1](https://github.com/woodleighschool/metabasis/compare/3.1.0...3.1.1) (2026-08-23)
 
 
