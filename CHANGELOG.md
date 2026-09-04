@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.1.3](https://github.com/woodleighschool/metabasis/compare/3.1.2...3.1.3) (2026-09-04)
+
+
+### Continuous Integration
+
+* **github-action:** update action jdx/mise-action (v4.2.5 → v4.3.0) ([#120](https://github.com/woodleighschool/metabasis/issues/120)) ([2e56828](https://github.com/woodleighschool/metabasis/commit/2e56828ed3f30b680f7fd215207a15511275f193))
+
+
+### Miscellaneous Chores
+
+* fresh mise lock ([cac0c59](https://github.com/woodleighschool/metabasis/commit/cac0c59be3454ff7166364a564a73a1a0ed75730))
+* **mise:** update tool lefthook (2.1.11 → 2.1.12) ([#124](https://github.com/woodleighschool/metabasis/issues/124)) ([8eb1abc](https://github.com/woodleighschool/metabasis/commit/8eb1abc395e9d4dc1d07ccc4922d8684d1a245f4))
+* **mise:** update tool oxfmt (0.65.0 → 0.66.0) ([#128](https://github.com/woodleighschool/metabasis/issues/128)) ([0c24dcc](https://github.com/woodleighschool/metabasis/commit/0c24dcc84f542a1f994f7ebcb265d18027c1d6aa))
+* **mise:** update tool zizmor (1.29.0 → 1.30.0) ([#127](https://github.com/woodleighschool/metabasis/issues/127)) ([5de358b](https://github.com/woodleighschool/metabasis/commit/5de358be4ba730183cd4fb16affefaba8aa543a4))
+
 ## [3.1.2](https://github.com/woodleighschool/metabasis/compare/3.1.1...3.1.2) (2026-08-28)
 
 
