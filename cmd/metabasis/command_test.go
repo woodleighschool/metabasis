@@ -12,7 +12,7 @@ func TestValidateDefaultsToConfigInCurrentDirectory(t *testing.T) {
 	directory := t.TempDir()
 	writeCommandConfig(t, directory, "config.yaml", commandConfig)
 	t.Chdir(directory)
-	command := newRootCommand()
+	command, _ := newRootCommand()
 	command.SetArgs([]string{"validate"})
 	var output bytes.Buffer
 	command.SetOut(&output)
@@ -30,7 +30,7 @@ func TestValidateAcceptsOrderedConfigurationFiles(t *testing.T) {
 	overlayPath := writeCommandConfig(t, directory, "overlay.yaml", `reconcile:
   poll_interval: 2m
 `)
-	command := newRootCommand()
+	command, _ := newRootCommand()
 	command.SetArgs([]string{"validate", "--config", basePath, "--config", overlayPath})
 	var output bytes.Buffer
 	command.SetOut(&output)
@@ -42,14 +42,14 @@ func TestValidateAcceptsOrderedConfigurationFiles(t *testing.T) {
 	}
 }
 
-func TestReconcileRequiresExactlyOneScope(t *testing.T) {
+func TestApplyRequiresExactlyOneScope(t *testing.T) {
 	t.Parallel()
 	tests := [][]string{
-		{"reconcile"},
-		{"reconcile", "--subject", "user@example.com", "--all"},
+		{"apply"},
+		{"apply", "--subject", "user@example.com", "--all"},
 	}
 	for _, args := range tests {
-		command := newRootCommand()
+		command, _ := newRootCommand()
 		command.SetArgs(args)
 		err := command.Execute()
 		if err == nil || !strings.Contains(err.Error(), "set exactly one of --subject or --all") {

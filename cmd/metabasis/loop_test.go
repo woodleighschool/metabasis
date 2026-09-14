@@ -41,7 +41,7 @@ func TestRunLoopCancelsInFlightReconciliation(t *testing.T) {
 
 func TestRunCycleKeepsRoutineSuccessAtDebug(t *testing.T) {
 	reconcileSubjects := func(context.Context) ([]reconcile.Result, error) {
-		return []reconcile.Result{{Subject: "user@example.invalid", Plan: planner.Plan{Rule: "staff"}}}, nil
+		return []reconcile.Result{{Subject: "user@example.invalid", Plan: &planner.Plan{Rule: "staff"}}}, nil
 	}
 
 	var infoOutput bytes.Buffer
@@ -70,8 +70,9 @@ func TestRunCycleKeepsRoutineSuccessAtDebug(t *testing.T) {
 func TestRunCycleLogsMembershipChangesAtInfo(t *testing.T) {
 	reconcileSubjects := func(context.Context) ([]reconcile.Result, error) {
 		return []reconcile.Result{{
-			Subject: "user@example.invalid",
-			Plan:    planner.Plan{Rule: "staff", AddGroups: []string{"allow"}},
+			Subject:     "user@example.invalid",
+			Plan:        &planner.Plan{Rule: "staff", AddGroups: []string{"allow"}},
+			AddedGroups: []string{"allow"},
 		}}, nil
 	}
 	var output bytes.Buffer

@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -52,6 +53,22 @@ rules:
 	if err != nil {
 		t.Fatalf("store.Open() error = %v", err)
 	}
+	emptyCommand, _ := newRootCommand()
+	emptyCommand.SetArgs([]string{"intents", "list", "--config", configPath, "--output", "json"})
+	var emptyOutput bytes.Buffer
+	emptyCommand.SetOut(&emptyOutput)
+	if err := emptyCommand.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	var emptyReport struct {
+		Intents []intent.Intent `json:"intents"`
+	}
+	if err := json.Unmarshal(emptyOutput.Bytes(), &emptyReport); err != nil {
+		t.Fatal(err)
+	}
+	if emptyReport.Intents == nil || len(emptyReport.Intents) != 0 {
+		t.Fatalf("empty report = %s", emptyOutput.String())
+	}
 	now := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
 	if err := intentStore.UpsertIntent(t.Context(), intent.Intent{
 		Source: "freshservice", ID: "SR-1", Subject: "student@example.com",
@@ -61,7 +78,7 @@ rules:
 	}
 	intentStore.Close()
 
-	listCommand := newRootCommand()
+	listCommand, _ := newRootCommand()
 	listCommand.SetArgs([]string{"intents", "list", "--config", configPath})
 	var listOutput bytes.Buffer
 	listCommand.SetOut(&listOutput)
@@ -72,8 +89,8 @@ rules:
 		t.Errorf("intents list output = %q", output)
 	}
 
-	showCommand := newRootCommand()
-	showCommand.SetArgs([]string{"intents", "show", "freshservice", "SR-1", "--config", configPath})
+	showCommand, _ := newRootCommand()
+	showCommand.SetArgs([]string{"intents", "show", "freshservice", "SR-1", "--output", "json", "--config", configPath})
 	var showOutput bytes.Buffer
 	showCommand.SetOut(&showOutput)
 	if err := showCommand.Execute(); err != nil {

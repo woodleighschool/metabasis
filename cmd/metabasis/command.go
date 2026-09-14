@@ -22,7 +22,7 @@ import (
 	"github.com/woodleighschool/metabasis/internal/reconcile"
 )
 
-func newRootCommand() *cobra.Command {
+func newRootCommand() (*cobra.Command, *commandOutput) {
 	var configPaths []string
 	command := &cobra.Command{
 		Use:           "metabasis",
@@ -35,6 +35,10 @@ func newRootCommand() *cobra.Command {
 			return command.Help()
 		},
 	}
+	output := newCommandOutput(command)
+	command.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		return output.start(cmd)
+	}
 	command.PersistentFlags().StringArrayVar(
 		&configPaths,
 		"config",
@@ -42,15 +46,15 @@ func newRootCommand() *cobra.Command {
 		"path to a YAML configuration file; may be repeated in overlay order",
 	)
 	command.AddCommand(
-		newValidateCommand(&configPaths),
-		newPlanCommand(&configPaths),
-		newRunCommand(&configPaths),
-		newIntentsCommand(&configPaths),
-		newReconcileCommand(&configPaths),
+		newValidateCommand(&configPaths, output),
+		newPlanCommand(&configPaths, output),
+		newRunCommand(&configPaths, output),
+		newIntentsCommand(&configPaths, output),
+		newApplyCommand(&configPaths, output),
 		newSchemaCommand(),
 		newVersionCommand(),
 	)
-	return command
+	return command, output
 }
 
 func defaultConfigPaths() []string {
@@ -61,13 +65,13 @@ func defaultConfigPaths() []string {
 	return []string{"config.yaml"}
 }
 
-func newValidateCommand(configPaths *[]string) *cobra.Command {
+func newValidateCommand(configPaths *[]string, diagnostics *commandOutput) *cobra.Command {
 	return &cobra.Command{
 		Use:   "validate",
 		Short: "Validate configuration and identity expressions",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
-			if _, err := config.Load((*configPaths)...); err != nil {
+			if _, err := loadConfig(command, *configPaths, diagnostics); err != nil {
 				return fmt.Errorf("validate configuration: %w", err)
 			}
 			_, err := fmt.Fprintln(command.OutOrStdout(), "configuration valid")
@@ -76,7 +80,7 @@ func newValidateCommand(configPaths *[]string) *cobra.Command {
 	}
 }
 
-func newPlanCommand(configPaths *[]string) *cobra.Command {
+func newPlanCommand(configPaths *[]string, diagnostics *commandOutput) *cobra.Command {
 	var eventPath string
 	var output string
 	command := &cobra.Command{
@@ -87,12 +91,12 @@ func newPlanCommand(configPaths *[]string) *cobra.Command {
 			if eventPath == "" {
 				return fmt.Errorf("--event is required")
 			}
-			if output != "human" && output != "json" {
-				return fmt.Errorf("output must be human or json")
+			if output != "text" && output != "json" {
+				return fmt.Errorf("output must be text or json")
 			}
-			cfg, err := config.Load((*configPaths)...)
+			cfg, err := loadConfig(command, *configPaths, diagnostics)
 			if err != nil {
-				return fmt.Errorf("load configuration: %w", err)
+				return err
 			}
 			event, err := readEvent(eventPath)
 			if err != nil {
@@ -102,35 +106,36 @@ func newPlanCommand(configPaths *[]string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			application, err := app.Build(command.Context(), cfg, false, nil)
+			application, err := app.Build(command.Context(), cfg, false, nil, diagnostics.logger)
 			if err != nil {
 				return fmt.Errorf("start read-only service: %w", err)
 			}
 			plan, planErr := application.Reconciler.PlanEvent(command.Context(), event)
-			writeErr := writePlan(command.OutOrStdout(), output, plan)
+			diagnostics.endProgress(planErr)
+			writeErr := writePlan(command.OutOrStdout(), output, plan, planErr)
 			application.Close()
 			return errors.Join(planErr, writeErr)
 		},
 	}
 	command.Flags().StringVar(&eventPath, "event", "", "path to a canonical intent JSON file")
-	command.Flags().StringVar(&output, "output", "human", "plan output format: human or json")
+	command.Flags().StringVar(&output, "output", "text", "Report format: text or json")
 	return command
 }
 
-func newRunCommand(configPaths *[]string) *cobra.Command {
+func newRunCommand(configPaths *[]string, diagnostics *commandOutput) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "run",
 		Short: "Serve webhooks and reconcile scheduled identity state",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
-			cfg, err := config.Load((*configPaths)...)
+			cfg, err := loadConfig(command, *configPaths, diagnostics)
 			if err != nil {
-				return fmt.Errorf("load configuration: %w", err)
+				return err
 			}
-			logger := slog.New(slog.NewJSONHandler(command.ErrOrStderr(), &slog.HandlerOptions{Level: cfg.ParsedLevel}))
+			logger := diagnostics.logger
 			wake := make(chan struct{}, 1)
 			recorder := metrics.New(metrics.BuildInfo{Version: version, Revision: commit}, logger)
-			application, err := app.Build(command.Context(), cfg, true, recorder)
+			application, err := app.Build(command.Context(), cfg, true, recorder, logger)
 			if err != nil {
 				return fmt.Errorf("start service: %w", err)
 			}
@@ -180,7 +185,7 @@ func runService(
 		runLoop(ctx, cfg.Reconcile.PollInterval.Duration, application.Reconciler, wake, logger)
 		close(reconcilerDone)
 	}()
-	logger.InfoContext(ctx, "service started", "version", version, "listen", cfg.Listen, "metrics_listen", cfg.MetricsListen)
+	logger.InfoContext(ctx, "Service started", "version", version, "listen", cfg.Listen, "metrics_listen", cfg.MetricsListen)
 
 	var runErr error
 	select {
@@ -206,19 +211,23 @@ func runService(
 	return runErr
 }
 
-func newIntentsCommand(configPaths *[]string) *cobra.Command {
+func newIntentsCommand(configPaths *[]string, diagnostics *commandOutput) *cobra.Command {
 	command := &cobra.Command{Use: "intents", Short: "Inspect accepted intents", Args: cobra.NoArgs}
-	command.AddCommand(newIntentsListCommand(configPaths), newIntentsShowCommand(configPaths))
+	command.AddCommand(newIntentsListCommand(configPaths, diagnostics), newIntentsShowCommand(configPaths, diagnostics))
 	return command
 }
 
-func newIntentsListCommand(configPaths *[]string) *cobra.Command {
-	return &cobra.Command{
+func newIntentsListCommand(configPaths *[]string, diagnostics *commandOutput) *cobra.Command {
+	var output string
+	command := &cobra.Command{
 		Use:   "list",
 		Short: "List accepted intents",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
-			application, err := buildOperationalApp(command.Context(), *configPaths)
+			if output != "text" && output != "json" {
+				return fmt.Errorf("output must be text or json")
+			}
+			application, err := buildOperationalApp(command, *configPaths, diagnostics)
 			if err != nil {
 				return err
 			}
@@ -227,18 +236,30 @@ func newIntentsListCommand(configPaths *[]string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if output == "json" {
+				if intents == nil {
+					intents = []intent.Intent{}
+				}
+				return writeJSON(command.OutOrStdout(), map[string]any{"intents": intents})
+			}
 			return writeIntents(command.OutOrStdout(), intents, time.Now().UTC())
 		},
 	}
+	command.Flags().StringVar(&output, "output", "text", "Report format: text or json")
+	return command
 }
 
-func newIntentsShowCommand(configPaths *[]string) *cobra.Command {
-	return &cobra.Command{
+func newIntentsShowCommand(configPaths *[]string, diagnostics *commandOutput) *cobra.Command {
+	var output string
+	command := &cobra.Command{
 		Use:   "show <source> <id>",
 		Short: "Show one accepted intent and its subject reconciliation state",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(command *cobra.Command, args []string) error {
-			application, err := buildOperationalApp(command.Context(), *configPaths)
+			if output != "text" && output != "json" {
+				return fmt.Errorf("output must be text or json")
+			}
+			application, err := buildOperationalApp(command, *configPaths, diagnostics)
 			if err != nil {
 				return err
 			}
@@ -251,6 +272,9 @@ func newIntentsShowCommand(configPaths *[]string) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if output == "text" {
+				return writeIntent(command.OutOrStdout(), accepted, state, time.Now().UTC())
+			}
 			return writeJSON(command.OutOrStdout(), map[string]any{
 				"intent": accepted,
 				"phase":  accepted.PhaseAt(time.Now().UTC()),
@@ -258,20 +282,26 @@ func newIntentsShowCommand(configPaths *[]string) *cobra.Command {
 			})
 		},
 	}
+	command.Flags().StringVar(&output, "output", "text", "Report format: text or json")
+	return command
 }
 
-func newReconcileCommand(configPaths *[]string) *cobra.Command {
+func newApplyCommand(configPaths *[]string, diagnostics *commandOutput) *cobra.Command {
 	var subject string
 	var all bool
+	var output string
 	command := &cobra.Command{
-		Use:   "reconcile",
+		Use:   "apply",
 		Short: "Reconcile one subject or all accepted subjects now",
 		Args:  cobra.NoArgs,
 		RunE: func(command *cobra.Command, _ []string) error {
+			if output != "text" && output != "json" {
+				return fmt.Errorf("output must be text or json")
+			}
 			if (strings.TrimSpace(subject) == "") == !all {
 				return fmt.Errorf("set exactly one of --subject or --all")
 			}
-			application, err := buildOperationalApp(command.Context(), *configPaths)
+			application, err := buildOperationalApp(command, *configPaths, diagnostics)
 			if err != nil {
 				return err
 			}
@@ -284,20 +314,22 @@ func newReconcileCommand(configPaths *[]string) *cobra.Command {
 				result, err = application.Reconciler.ReconcileSubject(command.Context(), strings.TrimSpace(subject))
 				results = []reconcile.Result{result}
 			}
-			return errors.Join(writeReconcileResults(command.OutOrStdout(), results), err)
+			diagnostics.endProgress(err)
+			return errors.Join(err, writeApplyReport(command.OutOrStdout(), output, results, err))
 		},
 	}
 	command.Flags().StringVar(&subject, "subject", "", "subject to reconcile")
-	command.Flags().BoolVar(&all, "all", false, "reconcile all subjects")
+	command.Flags().BoolVar(&all, "all", false, "Reconcile all accepted subjects")
+	command.Flags().StringVar(&output, "output", "text", "Report format: text or json")
 	return command
 }
 
-func buildOperationalApp(ctx context.Context, configPaths []string) (*app.App, error) {
-	cfg, err := config.Load(configPaths...)
+func buildOperationalApp(command *cobra.Command, configPaths []string, diagnostics *commandOutput) (*app.App, error) {
+	cfg, err := loadConfig(command, configPaths, diagnostics)
 	if err != nil {
-		return nil, fmt.Errorf("load configuration: %w", err)
+		return nil, err
 	}
-	application, err := app.Build(ctx, cfg, true, nil)
+	application, err := app.Build(command.Context(), cfg, command.Name() == "apply", nil, diagnostics.logger)
 	if err != nil {
 		return nil, fmt.Errorf("start service: %w", err)
 	}
@@ -325,7 +357,7 @@ func newSchemaCommand() *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().StringVar(&outputPath, "output", "-", "schema output path, or - for stdout")
+	command.Flags().StringVar(&outputPath, "output-file", "-", "schema output path, or - for stdout")
 	return command
 }
 
@@ -368,4 +400,16 @@ func soleWebhookSource(cfg *config.Config) (string, error) {
 		return source, nil
 	}
 	return "", fmt.Errorf("plan requires a configured webhook source")
+}
+
+func loadConfig(command *cobra.Command, paths []string, diagnostics *commandOutput) (*config.Config, error) {
+	cfg, err := config.Load(paths...)
+	if err != nil {
+		return nil, fmt.Errorf("load configuration: %w", err)
+	}
+	if !diagnostics.explicitLevel {
+		diagnostics.threshold.Set(cfg.ParsedLevel)
+	}
+	diagnostics.logger.DebugContext(command.Context(), "Loading application")
+	return cfg, nil
 }

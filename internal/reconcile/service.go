@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/woodleighschool/metabasis/internal/config"
@@ -23,13 +25,16 @@ type Directory interface {
 
 // Result describes one subject reconciliation attempt.
 type Result struct {
-	Subject string       `json:"subject"`
-	Plan    planner.Plan `json:"plan"`
-	Error   string       `json:"error,omitempty"`
+	Subject       string        `json:"subject"`
+	Plan          *planner.Plan `json:"plan,omitempty"`
+	Error         string        `json:"error,omitempty"`
+	AddedGroups   []string      `json:"added_groups"`
+	RemovedGroups []string      `json:"removed_groups"`
 }
 
 // Service derives and applies explicit group membership assertions for subjects.
 type Service struct {
+	logger    *slog.Logger
 	config    *config.Config
 	store     *store.Store
 	directory Directory
@@ -38,16 +43,21 @@ type Service struct {
 }
 
 // New creates a reconciliation service from validated configuration and concrete state.
-func New(cfg *config.Config, intentStore *store.Store, directory Directory, recorder *metrics.Recorder) (*Service, error) {
+func New(cfg *config.Config, intentStore *store.Store, directory Directory, recorder *metrics.Recorder, logger *slog.Logger) (*Service, error) {
 	if cfg == nil || intentStore == nil || directory == nil {
 		return nil, fmt.Errorf("config, store, and directory are required")
 	}
-	return &Service{config: cfg, store: intentStore, directory: directory, metrics: recorder, now: time.Now}, nil
+	if logger == nil {
+		logger = slog.New(slog.DiscardHandler)
+	}
+	return &Service{logger: logger, config: cfg, store: intentStore, directory: directory, metrics: recorder, now: time.Now}, nil
 }
 
 // ReconcileAll reconciles every subject with an accepted intent.
 func (s *Service) ReconcileAll(ctx context.Context) ([]Result, error) {
+	done := s.stage(ctx, "Loading accepted subjects")
 	subjects, err := s.store.ListSubjects(ctx)
+	done(err)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +66,9 @@ func (s *Service) ReconcileAll(ctx context.Context) ([]Result, error) {
 
 // ReconcileDue reconciles subjects whose transition or retry is due.
 func (s *Service) ReconcileDue(ctx context.Context) ([]Result, error) {
+	done := s.stage(ctx, "Loading due subjects")
 	subjects, err := s.store.ListSubjectsDue(ctx, s.now().UTC())
+	done(err)
 	if err != nil {
 		return nil, err
 	}
@@ -66,8 +78,18 @@ func (s *Service) ReconcileDue(ctx context.Context) ([]Result, error) {
 // ReconcileSubject derives and applies the current membership assertions.
 func (s *Service) ReconcileSubject(ctx context.Context, subject string) (result Result, err error) {
 	result.Subject = subject
+	result.AddedGroups, result.RemovedGroups = []string{}, []string{}
+	defer func() {
+		if err != nil {
+			result.Error = err.Error()
+		}
+		s.logger.InfoContext(ctx, "Subject reconciled", "subject", subject, "subject_result", true, "error", err,
+			"changes", len(result.AddedGroups)+len(result.RemovedGroups))
+	}()
 	observedAt := time.Now()
 	defer func() { s.metrics.RecordReconciliation(err, time.Since(observedAt)) }()
+	done := s.stage(ctx, "Loading subject state", "subject", subject)
+	defer func() { done(err) }()
 	subjectSession, err := s.store.LockSubject(ctx, subject)
 	if err != nil {
 		return result, err
@@ -81,27 +103,43 @@ func (s *Service) ReconcileSubject(ctx context.Context, subject string) (result 
 	nextTransition := state.NextTransitionAt
 	intents, err := subjectSession.ListIntents(ctx)
 	if err != nil {
-		return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, err)
+		return result, s.recordFailure(ctx, subjectSession, state, started, nextTransition, err)
 	}
 	nextTransition = nextTransitionAt(intents, started)
+	done(nil)
+	done = s.stage(ctx, "Resolving identity", "subject", subject)
 	user, err := s.directory.Resolve(ctx, subject, s.config.Identity.Groups)
 	if err != nil {
-		return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, err)
+		return result, s.recordFailure(ctx, subjectSession, state, started, nextTransition, err)
 	}
-	result.Plan, err = planner.Build(s.config, user, intents, started)
+	done(nil)
+	done = s.stage(ctx, "Planning memberships", "subject", subject)
+	plan, err := planner.Build(s.config, user, intents, started)
 	if err != nil {
-		return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, err)
+		return result, s.recordFailure(ctx, subjectSession, state, started, nextTransition, err)
 	}
+	result.Plan = &plan
+	total := len(plan.AddGroups) + len(plan.RemoveGroups)
+	done(nil)
+	done = s.stage(ctx, "Applying memberships", "subject", subject, "total", total, "unit", "changes")
 	for _, alias := range result.Plan.AddGroups {
 		if err := s.directory.AddGroupMember(ctx, s.config.Identity.Groups[alias][0], user.ID); err != nil {
-			return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, fmt.Errorf("add group %q: %w", alias, err))
+			return result, s.recordFailure(ctx, subjectSession, state, started, nextTransition, fmt.Errorf("add group %q: %w", alias, err))
 		}
+		result.AddedGroups = append(result.AddedGroups, alias)
+		completed := len(result.AddedGroups) + len(result.RemovedGroups)
+		s.logger.InfoContext(ctx, "Applying memberships", "subject", subject, "progress", true, "current", completed, "total", total, "unit", "changes", "progress_final", completed == total)
 	}
 	for _, alias := range result.Plan.RemoveGroups {
 		if err := s.directory.RemoveGroupMember(ctx, s.config.Identity.Groups[alias][0], user.ID); err != nil {
-			return result, s.recordFailure(ctx, subjectSession, &result, state, started, nextTransition, fmt.Errorf("remove group %q: %w", alias, err))
+			return result, s.recordFailure(ctx, subjectSession, state, started, nextTransition, fmt.Errorf("remove group %q: %w", alias, err))
 		}
+		result.RemovedGroups = append(result.RemovedGroups, alias)
+		completed := len(result.AddedGroups) + len(result.RemovedGroups)
+		s.logger.InfoContext(ctx, "Applying memberships", "subject", subject, "progress", true, "current", completed, "total", total, "unit", "changes", "progress_final", completed == total)
 	}
+	done(nil)
+	done = s.stage(ctx, "Saving reconciliation state", "subject", subject)
 	if err := subjectSession.RecordSuccess(ctx, started, result.Plan.NextTransition); err != nil {
 		return result, err
 	}
@@ -109,10 +147,12 @@ func (s *Service) ReconcileSubject(ctx context.Context, subject string) (result 
 }
 
 // PlanEvent overlays one canonical event on persisted state without writing either system.
-func (s *Service) PlanEvent(ctx context.Context, event intent.Intent) (planner.Plan, error) {
+func (s *Service) PlanEvent(ctx context.Context, event intent.Intent) (result planner.Plan, runErr error) {
 	if err := event.Validate(); err != nil {
 		return planner.Plan{}, err
 	}
+	done := s.stage(ctx, "Loading accepted intents")
+	defer func() { done(runErr) }()
 	intents, err := s.store.ListIntents(ctx, event.Subject)
 	if err != nil {
 		return planner.Plan{}, err
@@ -128,10 +168,14 @@ func (s *Service) PlanEvent(ctx context.Context, event intent.Intent) (planner.P
 	if !replaced {
 		intents = append(intents, event)
 	}
+	done(nil)
+	done = s.stage(ctx, "Resolving identity")
 	user, err := s.directory.Resolve(ctx, event.Subject, s.config.Identity.Groups)
 	if err != nil {
 		return planner.Plan{}, err
 	}
+	done(nil)
+	done = s.stage(ctx, "Planning memberships")
 	return planner.Build(s.config, user, intents, s.now().UTC())
 }
 
@@ -159,7 +203,6 @@ func (s *Service) reconcileSubjects(ctx context.Context, subjects []string) ([]R
 func (s *Service) recordFailure(
 	ctx context.Context,
 	subjectSession *store.SubjectSession,
-	result *Result,
 	state store.State,
 	attemptedAt time.Time,
 	nextTransition *time.Time,
@@ -168,7 +211,6 @@ func (s *Service) recordFailure(
 	if ctx.Err() != nil {
 		return cause
 	}
-	result.Error = cause.Error()
 	nextRetry := attemptedAt.Add(retryDelay(
 		s.config.Reconcile.RetryInitial.Duration,
 		s.config.Reconcile.RetryMax.Duration,
@@ -201,4 +243,19 @@ func retryDelay(initial, maximum time.Duration, previousFailures int) time.Durat
 		delay *= 2
 	}
 	return min(delay, maximum)
+}
+
+func (s *Service) stage(ctx context.Context, message string, attrs ...any) func(error) {
+	started := time.Now()
+	s.logger.InfoContext(ctx, message, append([]any{"stage", true}, attrs...)...)
+	var once sync.Once
+	return func(err error) {
+		once.Do(func() {
+			result := append([]any{"stage_result", true, "elapsed", time.Since(started).Round(time.Millisecond)}, attrs...)
+			if err != nil {
+				result = append(result, "error", err)
+			}
+			s.logger.InfoContext(ctx, message, result...)
+		})
+	}
 }

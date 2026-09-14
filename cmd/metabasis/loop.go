@@ -58,16 +58,20 @@ func runCycle(
 		return
 	}
 	for _, result := range results {
+		rule := ""
+		if result.Plan != nil {
+			rule = result.Plan.Rule
+		}
 		attributes := []any{
 			"subject", result.Subject,
-			"rule", result.Plan.Rule,
-			"add_groups", result.Plan.AddGroups,
-			"remove_groups", result.Plan.RemoveGroups,
+			"rule", rule,
+			"added_groups", result.AddedGroups,
+			"removed_groups", result.RemovedGroups,
 		}
 		switch {
 		case result.Error != "":
 			logger.WarnContext(ctx, "subject reconciliation failed", append(attributes, "error", result.Error)...)
-		case len(result.Plan.AddGroups) != 0 || len(result.Plan.RemoveGroups) != 0:
+		case len(result.AddedGroups) != 0 || len(result.RemovedGroups) != 0:
 			logger.InfoContext(ctx, "subject reconciled", attributes...)
 		default:
 			logger.DebugContext(ctx, "subject reconciled", attributes...)

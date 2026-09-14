@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/woodleighschool/metabasis/internal/config"
 	"github.com/woodleighschool/metabasis/internal/graph"
@@ -18,7 +19,7 @@ type App struct {
 }
 
 // Build creates application components and optionally applies database migrations.
-func Build(ctx context.Context, cfg *config.Config, migrate bool, recorder *metrics.Recorder) (*App, error) {
+func Build(ctx context.Context, cfg *config.Config, migrate bool, recorder *metrics.Recorder, logger *slog.Logger) (*App, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("config is required")
 	}
@@ -33,7 +34,7 @@ func Build(ctx context.Context, cfg *config.Config, migrate bool, recorder *metr
 		intentStore.Close()
 		return nil, err
 	}
-	reconciler, err := reconcile.New(cfg, intentStore, directory, recorder)
+	reconciler, err := reconcile.New(cfg, intentStore, directory, recorder, logger)
 	if err != nil {
 		intentStore.Close()
 		return nil, err

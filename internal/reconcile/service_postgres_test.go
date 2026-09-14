@@ -3,11 +3,14 @@
 package reconcile
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,10 +21,11 @@ import (
 )
 
 type fakeDirectory struct {
-	user    domain.User
-	err     error
-	added   []string
-	removed []string
+	user     domain.User
+	err      error
+	added    []string
+	removed  []string
+	addErrAt int
 }
 
 func (d *fakeDirectory) Resolve(context.Context, string, map[string][]string) (domain.User, error) {
@@ -30,7 +34,45 @@ func (d *fakeDirectory) Resolve(context.Context, string, map[string][]string) (d
 
 func (d *fakeDirectory) AddGroupMember(_ context.Context, groupID, _ string) error {
 	d.added = append(d.added, groupID)
+	if len(d.added) == d.addErrAt {
+		return errors.New("membership unavailable")
+	}
 	return d.err
+}
+
+func TestPartialFailureReportsOnlyCompletedMembershipChanges(t *testing.T) {
+	t.Parallel()
+	intentStore := testdb.Open(t)
+	cfg := loadTestConfig(t)
+	now := time.Date(2026, 9, 1, 0, 30, 0, 0, time.UTC)
+	accepted := intent.Intent{Source: "freshservice", ID: "REQUEST-1", Subject: "student@example.invalid", StartsAt: now.Add(-time.Minute), EndsAt: now.Add(time.Hour)}
+	if err := intentStore.UpsertIntent(t.Context(), accepted, now); err != nil {
+		t.Fatal(err)
+	}
+	directory := &fakeDirectory{user: domain.User{Present: true, ID: "user-id", Groups: []string{"students"}}, addErrAt: 2}
+	service, err := New(cfg, intentStore, directory, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var logs bytes.Buffer
+	service.logger = slog.New(slog.NewJSONHandler(&logs, nil))
+	service.now = func() time.Time { return now }
+	result, err := service.ReconcileSubject(t.Context(), accepted.Subject)
+	if err == nil || result.Error == "" {
+		t.Fatalf("result = %#v, error = %v", result, err)
+	}
+	if len(result.Plan.AddGroups) != 3 || len(result.AddedGroups) != 1 || result.AddedGroups[0] != result.Plan.AddGroups[0] || len(result.RemovedGroups) != 0 {
+		t.Fatalf("partial result = %#v", result)
+	}
+	if !strings.Contains(logs.String(), `"current":1,"total":3`) || strings.Contains(logs.String(), `"current":3,"total":3`) {
+		t.Fatalf("partial progress: %s", logs.String())
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	result, err = service.ReconcileSubject(ctx, accepted.Subject)
+	if err == nil || result.Error == "" || len(result.AddedGroups) != 0 {
+		t.Fatalf("cancelled result = %#v, error = %v", result, err)
+	}
 }
 
 func (d *fakeDirectory) RemoveGroupMember(_ context.Context, groupID, _ string) error {
@@ -54,7 +96,7 @@ func TestGraphFailurePersistsRetryAndRestartRecoversMissedTransition(t *testing.
 		user: domain.User{Present: true, ID: "user-id", Groups: []string{"students"}},
 		err:  errors.New("Graph unavailable"),
 	}
-	service, err := New(cfg, intentStore, failingDirectory, nil)
+	service, err := New(cfg, intentStore, failingDirectory, nil, nil)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -77,7 +119,7 @@ func TestGraphFailurePersistsRetryAndRestartRecoversMissedTransition(t *testing.
 	recoveredDirectory := &fakeDirectory{
 		user: domain.User{Present: true, ID: "user-id", Groups: []string{"students"}},
 	}
-	restarted, err := New(cfg, intentStore, recoveredDirectory, nil)
+	restarted, err := New(cfg, intentStore, recoveredDirectory, nil, nil)
 	if err != nil {
 		t.Fatalf("restart New() error = %v", err)
 	}
@@ -118,7 +160,7 @@ func TestReconciliationIsIdempotentWhenManagedMembershipMatches(t *testing.T) {
 		ID:      "user-id",
 		Groups:  []string{"overseas_access", "overseas_mfa", "staff"},
 	}}
-	service, err := New(cfg, intentStore, directory, nil)
+	service, err := New(cfg, intentStore, directory, nil, nil)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -148,7 +190,7 @@ func TestSettledStaffReconciliationPreservesUnmentionedMFAGroup(t *testing.T) {
 		ID:      "user-id",
 		Groups:  []string{"overseas_access", "overseas_mfa", "staff"},
 	}}
-	service, err := New(cfg, intentStore, directory, nil)
+	service, err := New(cfg, intentStore, directory, nil, nil)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -177,7 +219,7 @@ func TestReconciliationUsesLockedConnectionWithSingleConnectionPool(t *testing.T
 		t.Fatalf("UpsertIntent() error = %v", err)
 	}
 	directory := &fakeDirectory{user: domain.User{Present: true, ID: "user-id", Groups: []string{"staff"}}}
-	service, err := New(cfg, intentStore, directory, nil)
+	service, err := New(cfg, intentStore, directory, nil, nil)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -206,7 +248,7 @@ func TestPlanEventDoesNotModifyPersistedIntentOrGraph(t *testing.T) {
 		ID:      "user-id",
 		Groups:  []string{"overseas_access", "students"},
 	}}
-	service, err := New(cfg, intentStore, directory, nil)
+	service, err := New(cfg, intentStore, directory, nil, nil)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}

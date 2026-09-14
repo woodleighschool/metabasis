@@ -55,14 +55,14 @@ touch .env
 
 Fill `.env` with values for the `${...}` names in `config.yaml`. Docker Compose reads this file automatically; export the same values in your shell when using a downloaded binary.
 
-| Command                                                 | Behaviour                                   |
-| ------------------------------------------------------- | ------------------------------------------- |
-| `metabasis validate`                                    | Validate configuration and exit             |
-| `metabasis plan --event request.json`                   | Print a read-only plan for one event        |
-| `metabasis intents list`                                | Inspect accepted intents                    |
-| `metabasis reconcile --subject student@example.invalid` | Reconcile one stored subject now            |
-| `metabasis reconcile --all`                             | Reconcile every stored subject now          |
-| `metabasis run`                                         | Serve webhooks and scheduled reconciliation |
+| Command                                             | Behaviour                                   |
+| --------------------------------------------------- | ------------------------------------------- |
+| `metabasis validate`                                | Validate configuration and exit             |
+| `metabasis plan --event request.json`               | Print a read-only plan for one event        |
+| `metabasis intents list`                            | Inspect accepted intents                    |
+| `metabasis apply --subject student@example.invalid` | Reconcile one stored subject now            |
+| `metabasis apply --all`                             | Reconcile every stored subject now          |
+| `metabasis run`                                     | Serve webhooks and scheduled reconciliation |
 
 If `config.yaml` is in the current directory, `--config` may be omitted. Multiple `--config` flags apply overlays in order.
 
@@ -83,13 +83,26 @@ docker compose run --rm \
   metabasis plan --event /request.json
 ```
 
-Daemon mode writes structured JSON to stderr. Lifecycle and material reconciliation events use `info`, warnings and failures use `warn` or `error`, and successful cycle summaries plus routine no-op evaluations use `debug`.
+Stages and diagnostics go to stderr; reports go to stdout. Finite commands show
+indented operation rows beneath each subject heading, with measured counts where available and a spinner for
+waiting work. Completed results remain in scrollback. Colours respect `NO_COLOR`.
+Successful operation trees collapse to their heading; failures remain expanded.
+Redirected output and CI use log lines, with intermediate progress at debug level. `--no-progress` disables animation. `--quiet` (`-q`) keeps warnings and errors;
+`--verbose` (`-v`) and `--debug` (`-d`) enable debug diagnostics. Use `--log-level
+debug|info|warn|error` for an explicit threshold. Log levels leave reports intact.
+`--output text` (default) writes a readable report. `--output json` writes one report object, including partial results and an `error`
+when execution fails. `--log-format json` writes JSON diagnostic records.
+
+`run` defaults to JSON diagnostics with no animation. Startup, shutdown and
+material changes use `info`; routine stages and unchanged cycles use `debug`.
+`--log-format text` selects readable service logs. Cycles continue after failures;
+`apply` exits unsuccessfully when its cycle fails.
 
 ## ⚙️ Configuration
 
 Configuration is strict. Mappings merge recursively; lists and scalar values replace earlier values. Environment placeholders must occupy a whole YAML value such as `${MICROSOFT_CLIENT_SECRET}`.
 
-Runtime settings resolve from `METABASIS_*` environment variables, then the corresponding YAML value, then the default. CLI flags select configuration files or command behaviour rather than mirroring runtime settings.
+Runtime settings resolve from `METABASIS_*` environment variables, then the corresponding YAML value, then the default. Explicit CLI logging flags override the configured log level.
 
 | Environment variable                          | YAML fallback                       | Default  |
 | --------------------------------------------- | ----------------------------------- | -------- |

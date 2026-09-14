@@ -7,7 +7,7 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-//go:generate go run ../../cmd/metabasis schema --output ../../metabasis.schema.json
+//go:generate go run ../../cmd/metabasis schema --output-file ../../metabasis.schema.json
 
 // JSONSchema returns the editor-facing structural schema generated from Config's YAML tags.
 func JSONSchema() *jsonschema.Schema {
