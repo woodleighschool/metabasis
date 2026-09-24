@@ -1,5 +1,52 @@
 # Changelog
 
+## [4.0.0](https://github.com/woodleighschool/metabasis/compare/3.1.2...4.0.0) (2026-09-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* align reconciler commands and output
+
+### Features
+
+* align reconciler commands and output ([9f94978](https://github.com/woodleighschool/metabasis/commit/9f9497853b6522c19db7390a6195df84ec9c27bf))
+* **go:** update module github.com/dustin/go-humanize (v1.0.1 → v1.1.0) ([#136](https://github.com/woodleighschool/metabasis/issues/136)) ([8094e2d](https://github.com/woodleighschool/metabasis/commit/8094e2dfffcd33fd76a8b953f377158682ce2ade))
+* **go:** update module github.com/jackc/pgx/v5 (v5.10.0 → v5.11.0) ([#129](https://github.com/woodleighschool/metabasis/issues/129)) ([4c0a65f](https://github.com/woodleighschool/metabasis/commit/4c0a65f5d53f99693794ac2df89de11cc4eb2a7a))
+* **go:** update module github.com/pressly/goose/v3 (v3.27.3 → v3.28.0) ([#126](https://github.com/woodleighschool/metabasis/issues/126)) ([9b4a7a9](https://github.com/woodleighschool/metabasis/commit/9b4a7a9c97bac09e46404f8eae70a6396e1f21ae))
+
+
+### Bug Fixes
+
+* **container:** update image golang (1.27.0 → 1.27.1) ([#125](https://github.com/woodleighschool/metabasis/issues/125)) ([d5bb1c1](https://github.com/woodleighschool/metabasis/commit/d5bb1c1bb0d4d2eddc083b0fc1a6cfa44a2fd85f))
+* **go:** update azure-sdk-for-go monorepo ([#122](https://github.com/woodleighschool/metabasis/issues/122)) ([8d6b917](https://github.com/woodleighschool/metabasis/commit/8d6b917a0c638c357e82e6fffbf7ec4281d5eca6))
+* **go:** update module charm.land/bubbletea/v2 (v2.0.9 → v2.0.10) ([#140](https://github.com/woodleighschool/metabasis/issues/140)) ([94fe8aa](https://github.com/woodleighschool/metabasis/commit/94fe8aa07bb19d1c090c43cc2f3e284b11df0cd3))
+
+
+### Continuous Integration
+
+* **github-action:** update action jdx/mise-action (v4.2.5 → v4.3.0) ([#120](https://github.com/woodleighschool/metabasis/issues/120)) ([2e56828](https://github.com/woodleighschool/metabasis/commit/2e56828ed3f30b680f7fd215207a15511275f193))
+* validate release archives and skip metadata checks ([3b7780b](https://github.com/woodleighschool/metabasis/commit/3b7780b705c2b23058a025585d2e52063fbc7a14))
+
+
+### Miscellaneous Chores
+
+* fresh mise lock ([cac0c59](https://github.com/woodleighschool/metabasis/commit/cac0c59be3454ff7166364a564a73a1a0ed75730))
+* **github-action:** Update action home-operations/.github/actions/workflow-lint (v1.0.3 → v1.0.4) ([#138](https://github.com/woodleighschool/metabasis/issues/138)) ([2dea69b](https://github.com/woodleighschool/metabasis/commit/2dea69bb419bc3a771be7829f7dc3bacd37903de))
+* **github-action:** update action ubuntu (24.04 → 26.04) ([#137](https://github.com/woodleighschool/metabasis/issues/137)) ([fd7f29c](https://github.com/woodleighschool/metabasis/commit/fd7f29c1ab19029d3434583e2d41d5935f1632c9))
+* **mise:** update go toolchain ([#123](https://github.com/woodleighschool/metabasis/issues/123)) ([29c9ef7](https://github.com/woodleighschool/metabasis/commit/29c9ef77430078f90b4eebad610eab70de791acb))
+* **mise:** update tool go:golang.org/x/vuln/cmd/govulncheck (1.7.0 → v1.8.0) ([#130](https://github.com/woodleighschool/metabasis/issues/130)) ([5873a50](https://github.com/woodleighschool/metabasis/commit/5873a500ee3cad9964343fb49d83a4f53d2d7b41))
+* **mise:** update tool lefthook (2.1.11 → 2.1.12) ([#124](https://github.com/woodleighschool/metabasis/issues/124)) ([8eb1abc](https://github.com/woodleighschool/metabasis/commit/8eb1abc395e9d4dc1d07ccc4922d8684d1a245f4))
+* **mise:** update tool lefthook (2.1.12 → 2.1.14) ([#134](https://github.com/woodleighschool/metabasis/issues/134)) ([0757018](https://github.com/woodleighschool/metabasis/commit/075701854b9d171480adfc1bf0e04a9fa93e2b7f))
+* **mise:** update tool npm:@commitlint/cli (21.2.2 → 21.2.3) ([#139](https://github.com/woodleighschool/metabasis/issues/139)) ([18f60de](https://github.com/woodleighschool/metabasis/commit/18f60de59e3d6a248aaea870cb5b037c451725d6))
+* **mise:** update tool oxfmt (0.65.0 → 0.66.0) ([#128](https://github.com/woodleighschool/metabasis/issues/128)) ([0c24dcc](https://github.com/woodleighschool/metabasis/commit/0c24dcc84f542a1f994f7ebcb265d18027c1d6aa))
+* **mise:** update tool oxfmt (0.66.0 → 0.67.0) ([#131](https://github.com/woodleighschool/metabasis/issues/131)) ([415af65](https://github.com/woodleighschool/metabasis/commit/415af654d285140e90d02b180fcde1de699bab56))
+* **mise:** update tool oxfmt (0.67.0 → 0.68.0) ([#135](https://github.com/woodleighschool/metabasis/issues/135)) ([490194d](https://github.com/woodleighschool/metabasis/commit/490194db60ae658d7db9891ed95269bf687eee52))
+* **mise:** update tool oxfmt (0.68.0 → 0.69.0) ([#141](https://github.com/woodleighschool/metabasis/issues/141)) ([9841caf](https://github.com/woodleighschool/metabasis/commit/9841caf6d436f8d8f39332ba1e6f4b17ba812604))
+* **mise:** update tool oxfmt (0.69.0 → 0.70.0) ([#142](https://github.com/woodleighschool/metabasis/issues/142)) ([9bd50f9](https://github.com/woodleighschool/metabasis/commit/9bd50f9d5226a89f0feb60b9c5306b56caf3c184))
+* **mise:** update tool zizmor (1.29.0 → 1.30.0) ([#127](https://github.com/woodleighschool/metabasis/issues/127)) ([5de358b](https://github.com/woodleighschool/metabasis/commit/5de358be4ba730183cd4fb16affefaba8aa543a4))
+* **mise:** update tool zizmor (1.30.0 → 1.30.1) ([#132](https://github.com/woodleighschool/metabasis/issues/132)) ([5905269](https://github.com/woodleighschool/metabasis/commit/59052690d01be997a5fdfac3d0081111d90e4c36))
+* remove redundant workflow lint task ([9fe9c07](https://github.com/woodleighschool/metabasis/commit/9fe9c07686d6a152c212c6ffc5953af521bbb2d3))
+
 ## [3.1.2](https://github.com/woodleighschool/metabasis/compare/3.1.1...3.1.2) (2026-08-28)
 
 
