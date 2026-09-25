@@ -54,7 +54,7 @@ rules:
 		t.Fatalf("store.Open() error = %v", err)
 	}
 	emptyCommand, _ := newRootCommand()
-	emptyCommand.SetArgs([]string{"intents", "list", "--config", configPath, "--output", "json"})
+	emptyCommand.SetArgs([]string{"intents", "list", "--config", configPath, "--json"})
 	var emptyOutput bytes.Buffer
 	emptyCommand.SetOut(&emptyOutput)
 	if err := emptyCommand.Execute(); err != nil {
@@ -90,7 +90,7 @@ rules:
 	}
 
 	showCommand, _ := newRootCommand()
-	showCommand.SetArgs([]string{"intents", "show", "freshservice", "SR-1", "--output", "json", "--config", configPath})
+	showCommand.SetArgs([]string{"intents", "show", "freshservice", "SR-1", "--json", "--config", configPath})
 	var showOutput bytes.Buffer
 	showCommand.SetOut(&showOutput)
 	if err := showCommand.Execute(); err != nil {

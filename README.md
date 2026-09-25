@@ -83,20 +83,30 @@ docker compose run --rm \
   metabasis plan --event /request.json
 ```
 
-Stages and diagnostics go to stderr; reports go to stdout. Finite commands show
-indented operation rows beneath each subject heading, with measured counts where available and a spinner for
-waiting work. Completed results remain in scrollback. Colours respect `NO_COLOR`.
-Successful operation trees collapse to their heading; failures remain expanded.
-Redirected output and CI use log lines, with intermediate progress at debug level. `--no-progress` disables animation. `--quiet` (`-q`) keeps warnings and errors;
-`--verbose` (`-v`) and `--debug` (`-d`) enable debug diagnostics. Use `--log-level
-debug|info|warn|error` for an explicit threshold. Log levels leave reports intact.
-`--output text` (default) writes a readable report. `--output json` writes one report object, including partial results and an `error`
-when execution fails. `--log-format json` writes JSON diagnostic records.
+Finite commands write their report to stdout; `apply` writes each subject as it
+finishes, then the totals. A suitable stderr terminal shows delayed current
+activity per subject, including membership counts. Completed activity disappears;
+results have the same content in terminals and pipes. JSON, CI and dumb terminals
+suppress progress; `--no-progress` disables it explicitly. `NO_COLOR` controls
+colour. Warnings and errors go to stderr.
+`validate`, `plan`, `apply`, and `intents` commands accept `--json` for one final
+JSON document. Failed operations retain available results; startup failures leave
+stdout empty. `schema` writes its native JSON document.
 
-`run` defaults to JSON diagnostics with no animation. Startup, shutdown and
-material changes use `info`; routine stages and unchanged cycles use `debug`.
-`--log-format text` selects readable service logs. Cycles continue after failures;
-`apply` exits unsuccessfully when its cycle fails.
+`plan` explains the matched rule, aggregate state, contributing intents, and
+present/absent assertions, including assertions already satisfied. `apply`
+reports completed additions and removals, failed and unattempted writes, and
+totals across the whole run. `apply --all` shows changed and failed subjects;
+add `--include-unchanged` to include unchanged subjects in human output. JSON
+includes every subject in the selected execution scope.
+`apply --subject` always shows the requested subject. Membership results describe
+completed API calls; they are not a subsequent directory read.
+
+`run` writes JSON diagnostic records to stderr. Startup, shutdown and membership
+changes use `info`; routine stages and unchanged cycles use `debug`. Configuration
+and environment set the threshold; `run --log-level debug|info|warn|error`
+overrides it. Cycles continue after failures; `apply` exits unsuccessfully when
+its cycle fails.
 
 ## ⚙️ Configuration
 
@@ -141,7 +151,7 @@ The first matching CEL rule applies to a subject. The service selects one aggreg
 
 `identity.groups` maps provider group IDs to aliases available to CEL and membership assertions. `present` adds a missing membership, `absent` removes an existing membership, and an unmentioned alias is preserved. Writable aliases must resolve to exactly one group ID. Adds are attempted before removals; Graph failures leave the accepted intent intact and persist retry state.
 
-`plan` is read-only. It overlays the supplied event on persisted intents and shows the resolved user, matched rule, aggregate state, intent phases, present and absent assertions, current aliases, diff, and next transition.
+`plan` is read-only. It overlays the supplied event on persisted intents and shows the resolved user, matched rule, aggregate state, intent phases, membership assertions and proposed changes. The next intent boundary triggers recalculation; overlapping intents may keep the aggregate state unchanged.
 
 ## 🌐 HTTP
 

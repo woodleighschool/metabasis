@@ -64,6 +64,9 @@ func TestPartialFailureReportsOnlyCompletedMembershipChanges(t *testing.T) {
 	if len(result.Plan.AddGroups) != 3 || len(result.AddedGroups) != 1 || result.AddedGroups[0] != result.Plan.AddGroups[0] || len(result.RemovedGroups) != 0 {
 		t.Fatalf("partial result = %#v", result)
 	}
+	if result.FailedOperation == nil || result.FailedOperation.Action != "add" || result.FailedOperation.Group != result.Plan.AddGroups[1] {
+		t.Fatalf("failed membership operation = %#v", result.FailedOperation)
+	}
 	if !strings.Contains(logs.String(), `"current":1,"total":3`) || strings.Contains(logs.String(), `"current":3,"total":3`) {
 		t.Fatalf("partial progress: %s", logs.String())
 	}
@@ -124,12 +127,20 @@ func TestGraphFailurePersistsRetryAndRestartRecoversMissedTransition(t *testing.
 		t.Fatalf("restart New() error = %v", err)
 	}
 	restarted.now = func() time.Time { return now.Add(2 * time.Minute) }
+	var streamed []string
+	restarted.SubjectDone = func(result Result) error {
+		streamed = append(streamed, result.Subject)
+		return nil
+	}
 	results, err := restarted.ReconcileAll(t.Context())
 	if err != nil {
 		t.Fatalf("restart ReconcileAll() error = %v", err)
 	}
 	if len(results) != 1 || results[0].Plan.Intents[0].Phase != intent.PhaseActive {
 		t.Fatalf("restart results = %+v", results)
+	}
+	if !slices.Equal(streamed, []string{accepted.Subject}) {
+		t.Fatalf("streamed subjects = %v", streamed)
 	}
 	if got, want := recoveredDirectory.added, []string{"mfa-registration", "overseas-access", "overseas-mfa"}; !slices.Equal(got, want) {
 		t.Errorf("added groups = %v, want %v", got, want)

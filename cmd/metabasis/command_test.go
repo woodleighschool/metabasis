@@ -2,11 +2,35 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestValidateWritesOneJSONReport(t *testing.T) {
+	path := writeCommandConfig(t, t.TempDir(), "config.yaml", commandConfig)
+	command, output := newRootCommand()
+	var report, diagnostics bytes.Buffer
+	command.SetOut(&report)
+	command.SetErr(&diagnostics)
+	command.SetArgs([]string{"validate", "--config", path, "--json"})
+	executed, err := command.ExecuteC()
+	output.finish(executed, err)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result struct {
+		Valid bool `json:"valid"`
+	}
+	if err := json.Unmarshal(report.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if !result.Valid || diagnostics.Len() != 0 {
+		t.Fatalf("result = %#v, diagnostics = %q", result, diagnostics.String())
+	}
+}
 
 func TestValidateDefaultsToConfigInCurrentDirectory(t *testing.T) {
 	directory := t.TempDir()

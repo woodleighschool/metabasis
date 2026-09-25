@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,130 +9,105 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"sync/atomic"
-	"time"
 
-	"github.com/lmittmann/tint"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
+	"github.com/woodleighschool/metabasis/internal/reconcile"
 )
 
+// commandOutput owns stderr. Finite commands show a live region of each
+// subject's stages in a terminal and print warnings; run writes JSON logs.
 type commandOutput struct {
-	mu                                sync.Mutex
-	out                               io.Writer
-	logger                            *slog.Logger
-	progress                          *terminalProgress
-	interactive                       bool
-	reportWritten                     bool
-	started                           time.Time
-	staged                            atomic.Bool
-	level, format                     string
-	threshold                         slog.LevelVar
-	explicitLevel, daemon             bool
-	quiet, verbose, debug, noProgress bool
-}
-
-func newCommandOutput(cmd *cobra.Command) *commandOutput {
-	o := &commandOutput{}
-	flags := cmd.PersistentFlags()
-	flags.StringVar(&o.level, "log-level", "info", "Log level: debug, info, warn or error")
-	flags.StringVar(&o.format, "log-format", "text", "Stderr log format: text or json (run defaults to json)")
-	flags.BoolVarP(&o.quiet, "quiet", "q", false, "Show only warnings and errors on stderr")
-	flags.BoolVarP(&o.verbose, "verbose", "v", false, "Show debug diagnostics")
-	flags.BoolVarP(&o.debug, "debug", "d", false, "Show debug diagnostics (same as --verbose)")
-	flags.BoolVar(&o.noProgress, "no-progress", false, "Use ordinary log lines without live terminal progress")
-	cmd.MarkFlagsMutuallyExclusive("log-level", "quiet", "verbose", "debug")
-	return o
+	activityEnabled bool
+	mu              sync.Mutex
+	out             io.Writer
+	style           textStyle
+	logger          *slog.Logger
+	progress        *terminalProgress
+	interactive     bool
+	reportError     bool
+	level           string
+	threshold       slog.LevelVar
+	explicitLevel   bool
+	daemon          bool
 }
 
 func (o *commandOutput) start(cmd *cobra.Command) error {
 	o.out = cmd.ErrOrStderr()
+	o.style = newTextStyle(o.out)
 	o.daemon = cmd.Name() == "run"
-	if o.daemon && !cmd.Flags().Changed("log-format") {
-		o.format = "json"
-	}
-	o.explicitLevel = cmd.Flags().Changed("log-level") || cmd.Flags().Changed("quiet") || cmd.Flags().Changed("verbose") || cmd.Flags().Changed("debug")
-	var level slog.Level
-	switch strings.ToLower(o.level) {
-	case "debug":
-		level = slog.LevelDebug
-	case "info":
-		level = slog.LevelInfo
-	case "warn":
-		level = slog.LevelWarn
-	case "error":
-		level = slog.LevelError
-	default:
-		return fmt.Errorf("invalid log level %q: use debug, info, warn or error", o.level)
-	}
-	if o.quiet {
-		level = slog.LevelWarn
-	}
-	if o.verbose || o.debug {
-		level = slog.LevelDebug
-	}
-	if o.format != "text" && o.format != "json" {
-		return fmt.Errorf("invalid log format %q: use text or json", o.format)
-	}
-	terminal := terminalOutput(o.out)
-	o.interactive = terminal && !o.daemon && !o.noProgress && o.format == "text" && os.Getenv("CI") == ""
-	o.threshold.Set(level)
-	var handler slog.Handler
-	replace := func(_ []string, attr slog.Attr) slog.Attr {
-		if attr.Key == "stage" || attr.Key == "progress" || attr.Key == "progress_final" || attr.Key == "stage_result" || attr.Key == "subject_result" {
-			return slog.Attr{}
+	o.explicitLevel = o.daemon && cmd.Flags().Changed("log-level")
+	o.threshold.Set(slog.LevelInfo)
+	if o.daemon {
+		switch strings.ToLower(o.level) {
+		case "debug", "info", "warn", "error":
+		default:
+			return fmt.Errorf("invalid log level %q: use debug, info, warn or error", o.level)
 		}
-		return attr
+		if err := o.threshold.UnmarshalText([]byte(o.level)); err != nil {
+			return fmt.Errorf("invalid log level %q: use debug, info, warn or error", o.level)
+		}
 	}
-	if o.format == "json" {
-		handler = slog.NewJSONHandler(o, &slog.HandlerOptions{Level: &o.threshold})
-	} else {
-		handler = tint.NewTextHandler(o, &tint.Options{Level: &o.threshold, NoColor: !newTextStyle(o.out).enabled, TimeFormat: "15:04:05", ReplaceAttr: replace})
-	}
-	o.logger = slog.New(&stageHandler{Handler: handler, output: o})
-	o.started = time.Now()
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	noProgress, _ := cmd.Flags().GetBool("no-progress")
+	o.activityEnabled = !o.daemon && !jsonOutput && !noProgress && cmd.Name() != "schema"
+	o.interactive = o.activityEnabled && terminalOutput(o.out) && os.Getenv("CI") == ""
+	o.logger = slog.New(&activityHandler{Handler: slog.NewJSONHandler(o.out, &slog.HandlerOptions{Level: &o.threshold}), output: o})
 	cmd.SetOut(reportWriter{Writer: cmd.OutOrStdout(), output: o})
 	return nil
 }
 
-func (o *commandOutput) Write(data []byte) (int, error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	if o.progress != nil {
-		return o.progress.Write(data)
+func (o *commandOutput) finish(cmd *cobra.Command, err error) {
+	interrupted := cmd.Context() != nil && errors.Is(context.Cause(cmd.Context()), errInterrupted)
+	terminated := cmd.Context() != nil && errors.Is(context.Cause(cmd.Context()), errTerminated)
+	if interrupted {
+		err = errInterrupted
 	}
-	return o.out.Write(data)
+	o.stop()
+	if err == nil && o.logger == nil {
+		return
+	}
+	if cmd.Name() == "run" {
+		if o.logger == nil {
+			o.logger = slog.New(slog.NewJSONHandler(cmd.ErrOrStderr(), nil))
+		}
+		switch {
+		case interrupted || terminated:
+			o.logger.Info("Service stopped")
+		case err != nil:
+			o.logger.Error("Service failed", "error", err)
+		default:
+			o.logger.Info("Service stopped")
+		}
+		return
+	}
+	if err == nil {
+		return
+	}
+	message := err.Error()
+	if o.reportError {
+		message = strings.SplitN(message, "\n", 2)[0]
+	}
+	if interrupted {
+		message = "interrupted"
+	}
+	label := newTextStyle(cmd.ErrOrStderr()).paint("Error:", color.Bold, color.FgHiRed)
+	_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", label, reportText(strings.Join(strings.Fields(message), " ")))
 }
 
 func (o *commandOutput) stop() {
-	o.endProgress(nil)
-}
-
-func (o *commandOutput) finish(cmd *cobra.Command, err error) {
-	o.endProgress(err)
+	o.mu.Lock()
+	defer o.mu.Unlock()
 	o.interactive = false
-	if o.logger == nil {
-		if o.format == "json" || (cmd.Name() == "run" && !cmd.Flags().Changed("log-format")) {
-			o.logger = slog.New(slog.NewJSONHandler(cmd.ErrOrStderr(), nil))
-		} else {
-			o.logger = slog.New(tint.NewTextHandler(cmd.ErrOrStderr(), &tint.Options{NoColor: true}))
-		}
-	}
-	if format, _ := cmd.Flags().GetString("output"); err != nil && format == "json" && !o.reportWritten {
-		_ = json.NewEncoder(cmd.OutOrStdout()).Encode(map[string]string{"error": err.Error()})
-	}
-	switch {
-	case errors.Is(err, context.Canceled):
-		o.logger.Warn("Interrupted")
-	case err != nil:
-		o.logger.Error("Command failed", "error", err)
-	case o.daemon:
-		o.logger.Info("Service stopped")
-	case o.staged.Load() && !o.reportWritten:
-		o.logger.Info("Completed", "elapsed", time.Since(o.started).Round(time.Millisecond))
+	o.activityEnabled = false
+	if o.progress != nil {
+		o.progress.stop()
+		o.progress = nil
 	}
 }
 
-// Stop live rendering before stdout reports so terminal redraws cannot erase them.
+// reportWriter clears the live region before the final report is written.
 type reportWriter struct {
 	io.Writer
 	output *commandOutput
@@ -141,80 +115,108 @@ type reportWriter struct {
 
 func (w reportWriter) Write(data []byte) (int, error) {
 	w.output.stop()
-	w.output.reportWritten = true
 	return w.Writer.Write(data)
 }
 
-type stageHandler struct {
+// subjectDone streams a finished subject's report block to out. In a
+// terminal, a subject the report leaves out still leaves its outcome line in
+// place of its live activity.
+func (o *commandOutput) subjectDone(out io.Writer, result reconcile.Result, includeUnchanged bool) error {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.progress != nil {
+		o.progress.complete(result.Subject)
+	}
+	// Streaming goes around the final report's writer, which ends progress.
+	if writer, ok := out.(reportWriter); ok {
+		out = writer.Writer
+	}
+	style := newTextStyle(out)
+	var text string
+	switch {
+	case includeUnchanged || subjectStatus(result) != "unchanged":
+		text = renderSubject(style, result)
+	default:
+		return nil
+	}
+	if o.progress != nil {
+		return o.progress.write(out, text)
+	}
+	_, err := io.WriteString(out, text)
+	return err
+}
+
+// activityHandler sends stage records to the live region and prints warnings.
+type activityHandler struct {
 	slog.Handler
 	output *commandOutput
 	attrs  []slog.Attr
 }
 
-func (h *stageHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &stageHandler{Handler: h.Handler.WithAttrs(attrs), output: h.output, attrs: append(append([]slog.Attr(nil), h.attrs...), attrs...)}
+func (h *activityHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return &activityHandler{Handler: h.Handler.WithAttrs(attrs), output: h.output, attrs: append(append([]slog.Attr(nil), h.attrs...), attrs...)}
 }
 
-func (h *stageHandler) WithGroup(name string) slog.Handler {
-	return &stageHandler{Handler: h.Handler.WithGroup(name), output: h.output, attrs: h.attrs}
+func (h *activityHandler) WithGroup(name string) slog.Handler {
+	return &activityHandler{Handler: h.Handler.WithGroup(name), output: h.output, attrs: h.attrs}
 }
 
-func (h *stageHandler) Handle(ctx context.Context, record slog.Record) error {
+func (h *activityHandler) Handle(ctx context.Context, record slog.Record) error {
 	a := readActivity(record, h.attrs)
 	o := h.output
-	if (a.stage || a.progress || a.status || a.subjectResult) && o.daemon {
-		record.Level = slog.LevelDebug
-	}
-	if !h.Enabled(ctx, record.Level) {
-		return nil
-	}
-	if a.stage {
-		o.staged.Store(true)
-	}
-	if o.interactive && (a.stage || a.progress || a.status || a.subjectResult) {
-		o.mu.Lock()
-		defer o.mu.Unlock()
-		if o.progress == nil {
-			o.progress = newTerminalProgress(o.out)
+	if o.daemon {
+		if a.stage || a.progress || a.status || subjectResult(record) {
+			record.Level = slog.LevelDebug
 		}
-		if a.subjectResult {
-			status := "unchanged"
-			if a.changes > 0 {
-				status = "applied (1 change)"
-				if a.changes > 1 {
-					status = fmt.Sprintf("applied (%d changes)", a.changes)
+		if !h.Enabled(ctx, record.Level) {
+			return nil
+		}
+		return h.Handler.Handle(ctx, record)
+	}
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if a.stage || a.progress || a.status {
+		if o.activityEnabled || o.interactive {
+			if o.progress == nil {
+				o.progress = newTerminalProgress(o.out)
+				if !o.interactive {
+					o.progress.startPlain()
 				}
 			}
-			if a.err != "" {
-				status = "failed"
-			}
-			o.progress.complete(a.scope, status, a.err != "")
-		} else {
 			o.progress.update(a)
 		}
 		return nil
 	}
-	if a.progress && !a.final {
-		record.Level = slog.LevelDebug
-		if !h.Enabled(ctx, record.Level) {
-			return nil
-		}
+	if record.Level < slog.LevelWarn {
+		return nil
 	}
-	return h.Handler.Handle(ctx, record)
+	var attrs []string
+	read := func(attr slog.Attr) bool {
+		attrs = append(attrs, attr.Key+"="+attr.Value.String())
+		return true
+	}
+	for _, attr := range h.attrs {
+		read(attr)
+	}
+	record.Attrs(read)
+	message := record.Message
+	if len(attrs) > 0 {
+		message += "; " + strings.Join(attrs, "; ")
+	}
+	line := o.style.paint("Warning:", color.FgHiYellow) + " " + reportText(message) + "\n"
+	if o.progress != nil {
+		return o.progress.write(o.out, line)
+	}
+	_, err := io.WriteString(o.out, line)
+	return err
 }
 
-func (o *commandOutput) endProgress(err error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	if o.progress != nil {
-		outcome := ""
-		if err != nil {
-			outcome = "failed"
-		}
-		if errors.Is(err, context.Canceled) {
-			outcome = "interrupted"
-		}
-		o.progress.stop(outcome)
-		o.progress = nil
-	}
+// subjectResult reports whether a record ends a subject's reconciliation.
+func subjectResult(record slog.Record) bool {
+	found := false
+	record.Attrs(func(attr slog.Attr) bool {
+		found = attr.Key == "subject_result" && attr.Value.Kind() == slog.KindBool && attr.Value.Bool()
+		return !found
+	})
+	return found
 }

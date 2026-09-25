@@ -25,15 +25,26 @@ type Directory interface {
 
 // Result describes one subject reconciliation attempt.
 type Result struct {
-	Subject       string        `json:"subject"`
-	Plan          *planner.Plan `json:"plan,omitempty"`
-	Error         string        `json:"error,omitempty"`
-	AddedGroups   []string      `json:"added_groups"`
-	RemovedGroups []string      `json:"removed_groups"`
+	Subject         string               `json:"subject"`
+	Plan            *planner.Plan        `json:"plan,omitempty"`
+	Error           string               `json:"error,omitempty"`
+	AddedGroups     []string             `json:"added_groups"`
+	RemovedGroups   []string             `json:"removed_groups"`
+	FailedOperation *MembershipOperation `json:"failed_operation,omitempty"`
+}
+
+// MembershipOperation identifies a membership write that did not complete successfully.
+type MembershipOperation struct {
+	Action string `json:"action"`
+	Group  string `json:"group"`
 }
 
 // Service derives and applies explicit group membership assertions for subjects.
 type Service struct {
+	// SubjectDone, when set, receives each subject's result as it finishes
+	// within ReconcileAll or ReconcileDue.
+	SubjectDone func(Result) error
+
 	logger    *slog.Logger
 	config    *config.Config
 	store     *store.Store
@@ -57,7 +68,7 @@ func New(cfg *config.Config, intentStore *store.Store, directory Directory, reco
 func (s *Service) ReconcileAll(ctx context.Context) ([]Result, error) {
 	done := s.stage(ctx, "Loading accepted subjects")
 	subjects, err := s.store.ListSubjects(ctx)
-	done(err)
+	done(err, "detail", count(len(subjects), "subject"))
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +79,7 @@ func (s *Service) ReconcileAll(ctx context.Context) ([]Result, error) {
 func (s *Service) ReconcileDue(ctx context.Context) ([]Result, error) {
 	done := s.stage(ctx, "Loading due subjects")
 	subjects, err := s.store.ListSubjectsDue(ctx, s.now().UTC())
-	done(err)
+	done(err, "detail", count(len(subjects), "subject"))
 	if err != nil {
 		return nil, err
 	}
@@ -106,13 +117,13 @@ func (s *Service) ReconcileSubject(ctx context.Context, subject string) (result 
 		return result, s.recordFailure(ctx, subjectSession, state, started, nextTransition, err)
 	}
 	nextTransition = nextTransitionAt(intents, started)
-	done(nil)
+	done(nil, "detail", count(len(intents), "intent"))
 	done = s.stage(ctx, "Resolving identity", "subject", subject)
 	user, err := s.directory.Resolve(ctx, subject, s.config.Identity.Groups)
 	if err != nil {
 		return result, s.recordFailure(ctx, subjectSession, state, started, nextTransition, err)
 	}
-	done(nil)
+	done(nil, "detail", user.UserPrincipalName)
 	done = s.stage(ctx, "Planning memberships", "subject", subject)
 	plan, err := planner.Build(s.config, user, intents, started)
 	if err != nil {
@@ -120,10 +131,11 @@ func (s *Service) ReconcileSubject(ctx context.Context, subject string) (result 
 	}
 	result.Plan = &plan
 	total := len(plan.AddGroups) + len(plan.RemoveGroups)
-	done(nil)
+	done(nil, "detail", fmt.Sprintf("add %d, remove %d", len(plan.AddGroups), len(plan.RemoveGroups)))
 	done = s.stage(ctx, "Applying memberships", "subject", subject, "total", total, "unit", "changes")
 	for _, alias := range result.Plan.AddGroups {
 		if err := s.directory.AddGroupMember(ctx, s.config.Identity.Groups[alias][0], user.ID); err != nil {
+			result.FailedOperation = &MembershipOperation{Action: "add", Group: alias}
 			return result, s.recordFailure(ctx, subjectSession, state, started, nextTransition, fmt.Errorf("add group %q: %w", alias, err))
 		}
 		result.AddedGroups = append(result.AddedGroups, alias)
@@ -132,6 +144,7 @@ func (s *Service) ReconcileSubject(ctx context.Context, subject string) (result 
 	}
 	for _, alias := range result.Plan.RemoveGroups {
 		if err := s.directory.RemoveGroupMember(ctx, s.config.Identity.Groups[alias][0], user.ID); err != nil {
+			result.FailedOperation = &MembershipOperation{Action: "remove", Group: alias}
 			return result, s.recordFailure(ctx, subjectSession, state, started, nextTransition, fmt.Errorf("remove group %q: %w", alias, err))
 		}
 		result.RemovedGroups = append(result.RemovedGroups, alias)
@@ -196,6 +209,11 @@ func (s *Service) reconcileSubjects(ctx context.Context, subjects []string) ([]R
 		if err != nil {
 			reconciliationErrors = append(reconciliationErrors, fmt.Errorf("reconcile %s: %w", subject, err))
 		}
+		if s.SubjectDone != nil {
+			if err := s.SubjectDone(result); err != nil {
+				return results, errors.Join(append(reconciliationErrors, err)...)
+			}
+		}
 	}
 	return results, errors.Join(reconciliationErrors...)
 }
@@ -245,13 +263,25 @@ func retryDelay(initial, maximum time.Duration, previousFailures int) time.Durat
 	return min(delay, maximum)
 }
 
-func (s *Service) stage(ctx context.Context, message string, attrs ...any) func(error) {
+// count names a quantity for the live tree.
+func count(n int, noun string) string {
+	if n != 1 {
+		noun += "s"
+	}
+	return fmt.Sprintf("%d %s", n, noun)
+}
+
+// stage starts an operation and returns its completion function, which takes
+// the operation error and attributes describing its result, such as a detail
+// for the live tree.
+func (s *Service) stage(ctx context.Context, message string, attrs ...any) func(error, ...any) {
 	started := time.Now()
 	s.logger.InfoContext(ctx, message, append([]any{"stage", true}, attrs...)...)
 	var once sync.Once
-	return func(err error) {
+	return func(err error, details ...any) {
 		once.Do(func() {
 			result := append([]any{"stage_result", true, "elapsed", time.Since(started).Round(time.Millisecond)}, attrs...)
+			result = append(result, details...)
 			if err != nil {
 				result = append(result, "error", err)
 			}
