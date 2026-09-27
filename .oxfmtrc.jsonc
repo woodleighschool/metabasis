@@ -1,4 +1,9 @@
 {
-  "ignorePatterns": ["metabasis.schema.json"],
+  "ignorePatterns": [
+    "CHANGELOG.md",
+    ".release-please-manifest.json",
+    ".mise/locks/",
+    "metabasis.schema.json",
+  ],
   "printWidth": 100,
 }
