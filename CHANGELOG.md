@@ -1,5 +1,28 @@
 # Changelog
 
+## [4.0.0](https://github.com/woodleighschool/metabasis/compare/3.1.2...v4.0.0) (2026-10-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* align reconciler commands and output
+
+### Features
+
+* align reconciler commands and output ([9f94978](https://github.com/woodleighschool/metabasis/commit/9f9497853b6522c19db7390a6195df84ec9c27bf))
+* **go:** update module github.com/dustin/go-humanize (v1.0.1 → v1.1.0) ([#136](https://github.com/woodleighschool/metabasis/issues/136)) ([8094e2d](https://github.com/woodleighschool/metabasis/commit/8094e2dfffcd33fd76a8b953f377158682ce2ade))
+* **go:** update module github.com/jackc/pgx/v5 (v5.10.0 → v5.11.0) ([#129](https://github.com/woodleighschool/metabasis/issues/129)) ([4c0a65f](https://github.com/woodleighschool/metabasis/commit/4c0a65f5d53f99693794ac2df89de11cc4eb2a7a))
+* **go:** update module github.com/pressly/goose/v3 (v3.27.3 → v3.28.0) ([#126](https://github.com/woodleighschool/metabasis/issues/126)) ([9b4a7a9](https://github.com/woodleighschool/metabasis/commit/9b4a7a9c97bac09e46404f8eae70a6396e1f21ae))
+
+
+### Bug Fixes
+
+* **container:** update image golang (1.27.0 → 1.27.1) ([#125](https://github.com/woodleighschool/metabasis/issues/125)) ([d5bb1c1](https://github.com/woodleighschool/metabasis/commit/d5bb1c1bb0d4d2eddc083b0fc1a6cfa44a2fd85f))
+* **go:** update azure-sdk-for-go monorepo ([#122](https://github.com/woodleighschool/metabasis/issues/122)) ([8d6b917](https://github.com/woodleighschool/metabasis/commit/8d6b917a0c638c357e82e6fffbf7ec4281d5eca6))
+* **go:** update module charm.land/bubbletea/v2 (v2.0.9 → v2.0.10) ([#140](https://github.com/woodleighschool/metabasis/issues/140)) ([94fe8aa](https://github.com/woodleighschool/metabasis/commit/94fe8aa07bb19d1c090c43cc2f3e284b11df0cd3))
+* **go:** update module github.com/azure/azure-sdk-for-go/sdk/azcore (v1.23.1 → v1.23.2) ([#144](https://github.com/woodleighschool/metabasis/issues/144)) ([5e47f5b](https://github.com/woodleighschool/metabasis/commit/5e47f5b1ada910d65408df2a033650ff414fc33b))
+* **go:** update module github.com/lmittmann/tint (v1.2.0 → v1.2.1) ([#149](https://github.com/woodleighschool/metabasis/issues/149)) ([7fbeeb6](https://github.com/woodleighschool/metabasis/commit/7fbeeb66bebcf58a447d4ce64f4174db5368f2cb))
+
 ## [3.1.2](https://github.com/woodleighschool/metabasis/compare/3.1.1...3.1.2) (2026-08-28)
 
 
