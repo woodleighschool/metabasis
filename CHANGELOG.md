@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.1.2](https://github.com/woodleighschool/metabasis/compare/3.1.1...3.1.2) (2026-08-28)
+## [3.1.2](https://github.com/woodleighschool/metabasis/compare/v3.1.1...v3.1.2) (2026-08-28)
 
 
 ### Documentation
@@ -17,7 +17,7 @@
 
 * **mise:** update tool oxfmt (0.64.0 → 0.65.0) ([#119](https://github.com/woodleighschool/metabasis/issues/119)) ([1815ad8](https://github.com/woodleighschool/metabasis/commit/1815ad8caf210e60347edc57ecd3d472842e5e57))
 
-## [3.1.1](https://github.com/woodleighschool/metabasis/compare/3.1.0...3.1.1) (2026-08-23)
+## [3.1.1](https://github.com/woodleighschool/metabasis/compare/v3.1.0...v3.1.1) (2026-08-23)
 
 
 ### Bug Fixes
@@ -41,7 +41,7 @@
 * align repository conventions ([22d1a8c](https://github.com/woodleighschool/metabasis/commit/22d1a8c1946c2e998ff777b7ac37e1d1ccda154d))
 * **release-please:** sync configuration ([654ed32](https://github.com/woodleighschool/metabasis/commit/654ed328846018f0f3476daf2d2e90ad48c82099))
 
-## [3.1.0](https://github.com/woodleighschool/metabasis/compare/3.0.0...3.1.0) (2026-08-21)
+## [3.1.0](https://github.com/woodleighschool/metabasis/compare/v3.0.0...v3.1.0) (2026-08-21)
 
 
 ### Features
