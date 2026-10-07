@@ -21,14 +21,14 @@ func TestSubjectStagesStayUntilTheSubjectFinishes(t *testing.T) {
 	logger.Info("Applying memberships", "stage", true, "total", 2, "unit", "changes")
 	logger.Info("Applying memberships", "progress", true, "current", 1, "total", 2, "unit", "changes")
 	live := strings.Split(output.progress.view(time.Now().Add(time.Second), 100, 20), "\n")
-	if len(live) != 2 || live[0] != "student@example.invalid" || strings.Contains(live[1], "Resolving identity") ||
-		!strings.Contains(live[1], "Applying memberships  "+strings.Repeat("━", 10)+strings.Repeat("─", 10)+"  1 / 2 changes  (1s)") {
+	if len(live) != 2 || live[0] != "➤ student@example.invalid" || strings.Contains(live[1], "Resolving identity") ||
+		!strings.Contains(live[1], "Applying memberships "+strings.Repeat("━", 10)+strings.Repeat("─", 10)+" 1 / 2 changes (1s)") {
 		t.Fatalf("subject tree: %q", live)
 	}
 	if err := output.subjectDone(&report, reconcile.Result{Subject: "student@example.invalid", AddedGroups: []string{"allow_overseas"}}, false); err != nil {
 		t.Fatal(err)
 	}
-	if len(output.progress.groups) != 0 || report.String() != "Subject: student@example.invalid (applied)\n  Added: allow_overseas\n\n" || logs.Len() != 0 {
+	if len(output.progress.groups) != 0 || report.String() != "➤ Subject student@example.invalid: applied\n  ✓ Added: allow_overseas\n\n" || logs.Len() != 0 {
 		t.Fatalf("finished subject: live=%v report=%q logs=%q", output.progress.groups, report.String(), logs.String())
 	}
 }

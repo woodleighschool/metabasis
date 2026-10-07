@@ -66,16 +66,19 @@ func TestApplyReportPreservesPartialOutcomeAndWholeRunTotals(t *testing.T) {
 		}
 		text := output.String()
 		for _, want := range []string{
-			"Subject: student@example.invalid (failed)", "State: active", "Added: allow_overseas",
-			"Failed: add force_mfa", "Not attempted: remove block_outside_australia",
+			"➤ Subject student@example.invalid: failed", "State: active", "Added: allow_overseas",
+			"✗ add group force_mfa: membership unavailable", "– Not attempted: remove block_outside_australia",
 			"2 total, 0 applied, 1 unchanged, 1 failed", "Completed: 1 added, 0 removed",
 		} {
 			if !strings.Contains(text, want) {
 				t.Errorf("missing %q: %s", want, text)
 			}
 		}
-		if strings.Contains(text, "Subject: unchanged@example.invalid") != includeUnchanged || strings.Contains(text, "Added: force_mfa") {
+		if strings.Contains(text, "➤ Subject unchanged@example.invalid") != includeUnchanged || strings.Contains(text, "Added: force_mfa") {
 			t.Fatalf("selection or completed writes incorrect: %s", text)
+		}
+		if strings.Count(text, "force_mfa") != 1 {
+			t.Fatalf("failed operation repeated: %s", text)
 		}
 	}
 }
@@ -101,7 +104,7 @@ func TestPlanReportsSatisfiedAssertionsWithoutWrites(t *testing.T) {
 			t.Errorf("missing %q: %s", want, output.String())
 		}
 	}
-	if strings.Contains(output.String(), "->") {
+	if strings.Contains(output.String(), "→") {
 		t.Fatalf("invented a transition: %s", output.String())
 	}
 }

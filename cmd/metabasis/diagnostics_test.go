@@ -101,7 +101,7 @@ func TestFiniteCommandsPrintWarnings(t *testing.T) {
 	command.SetArgs([]string{"probe"})
 	executed, err := command.ExecuteC()
 	output.finish(executed, err)
-	if err != nil || report.Len() != 0 || diagnostics.String() != "Warning: Directory notice; source=fixture\n" {
+	if err != nil || report.Len() != 0 || diagnostics.String() != "! Directory notice; source=fixture\n" {
 		t.Fatalf("error = %v, report = %q, diagnostics = %q", err, report.String(), diagnostics.String())
 	}
 }
@@ -187,7 +187,7 @@ func TestStartupFailureLeavesStdoutEmpty(t *testing.T) {
 		command.SetArgs(args)
 		executed, err := command.ExecuteC()
 		output.finish(executed, err)
-		if err == nil || report.Len() != 0 || strings.Count(diagnostics.String(), "Error:") != 1 {
+		if err == nil || report.Len() != 0 || strings.Count(diagnostics.String(), "✗") != 1 {
 			t.Fatalf("error = %v, report = %q, diagnostics = %q", err, report.String(), diagnostics.String())
 		}
 	}
@@ -285,7 +285,7 @@ func TestFiniteErrorsArePrintedOnceWithoutLogs(t *testing.T) {
 	command.SetArgs([]string{"probe"})
 	executed, err := command.ExecuteC()
 	output.finish(executed, err)
-	if err == nil || report.Len() != 0 || diagnostics.String() != "Error: directory unavailable HTTP 503\n" {
+	if err == nil || report.Len() != 0 || diagnostics.String() != "✗ directory unavailable HTTP 503\n" {
 		t.Fatalf("error = %v, report = %q, diagnostics = %q", err, report.String(), diagnostics.String())
 	}
 }
@@ -307,7 +307,7 @@ func TestReportFailurePrintsConciseCauseOnStderr(t *testing.T) {
 	if err == nil || strings.Count(report.String(), "directory unavailable") != 1 {
 		t.Fatalf("error = %v, report = %q, diagnostics = %q", err, report.String(), diagnostics.String())
 	}
-	if diagnostics.String() != "Error: directory unavailable\n" {
+	if diagnostics.String() != "✗ directory unavailable\n" {
 		t.Fatalf("diagnostics = %q", diagnostics.String())
 	}
 }
@@ -324,7 +324,7 @@ func TestCancellationIsNotAutomaticallyAnInterrupt(t *testing.T) {
 			cancel(errInterrupted)
 		}
 		output.finish(cmd, context.Canceled)
-		if strings.Contains(logs.String(), "interrupted") != interrupted {
+		if strings.Contains(logs.String(), "– Interrupted.") != interrupted {
 			t.Fatalf("interrupted=%v: %s", interrupted, logs.String())
 		}
 	}

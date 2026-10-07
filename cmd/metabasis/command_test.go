@@ -43,7 +43,7 @@ func TestValidateDefaultsToConfigInCurrentDirectory(t *testing.T) {
 	if err := command.Execute(); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
-	if got, want := output.String(), "configuration valid\n"; got != want {
+	if got, want := output.String(), "✓ Configuration is valid.\n"; got != want {
 		t.Errorf("output = %q, want %q", got, want)
 	}
 }
@@ -61,7 +61,7 @@ func TestValidateAcceptsOrderedConfigurationFiles(t *testing.T) {
 	if err := command.Execute(); err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
-	if got, want := output.String(), "configuration valid\n"; got != want {
+	if got, want := output.String(), "✓ Configuration is valid.\n"; got != want {
 		t.Errorf("output = %q, want %q", got, want)
 	}
 }

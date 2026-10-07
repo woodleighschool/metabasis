@@ -93,6 +93,8 @@ colour. Warnings and errors go to stderr.
 JSON document. Failed operations retain available results; startup failures leave
 stdout empty. `schema` writes its native JSON document.
 
+Human reports use `➤` subject and intent headings, `→` membership transitions, `✓` completed changes, `✗` failures and `–` operations not attempted. Warnings use `!`; details use indented `label: value` lines. The intent inventory remains a table.
+
 `plan` explains the matched rule, aggregate state, contributing intents, and
 present/absent assertions, including assertions already satisfied. `apply`
 reports completed additions and removals, failed and unattempted writes, and

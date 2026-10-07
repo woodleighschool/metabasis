@@ -50,9 +50,9 @@ func writePlan(writer io.Writer, jsonOutput bool, plan planner.Plan, planErr err
 	style := newTextStyle(writer)
 	var text strings.Builder
 	if planErr != nil {
-		fmt.Fprintf(&text, "%s %s\n", style.paint("Plan failed:", color.FgHiRed), reportText(planErr.Error()))
+		fmt.Fprintf(&text, "%s %s\n", style.paint("✗ Plan failed:", color.FgHiRed), reportText(planErr.Error()))
 	} else {
-		fmt.Fprintf(&text, "%s %s\n", style.paint("Plan:", color.Bold), style.paint(reportText(plan.Subject), color.Bold))
+		fmt.Fprintln(&text, style.heading("Plan: "+reportText(plan.Subject)))
 		writePlanContext(&text, plan)
 		if len(plan.Intents) > 0 {
 			fmt.Fprintln(&text, "  Intents:")
@@ -65,14 +65,14 @@ func writePlan(writer io.Writer, jsonOutput bool, plan planner.Plan, planErr err
 			for _, group := range plan.PresentGroups {
 				state := style.paint("present (satisfied)", color.Faint)
 				if !slices.Contains(plan.CurrentGroups, group) {
-					state = style.paint("absent -> present (add)", color.FgHiGreen)
+					state = style.paint("absent → present (add)", color.FgHiGreen)
 				}
 				fmt.Fprintf(&text, "    %s: %s\n", reportText(group), state)
 			}
 			for _, group := range plan.AbsentGroups {
 				state := style.paint("absent (satisfied)", color.Faint)
 				if slices.Contains(plan.CurrentGroups, group) {
-					state = style.paint("present -> absent (remove)", color.FgHiRed)
+					state = style.paint("present → absent (remove)", color.FgHiRed)
 				}
 				fmt.Fprintf(&text, "    %s: %s\n", reportText(group), state)
 			}
@@ -136,7 +136,10 @@ func writeIntents(writer io.Writer, jsonOutput bool, intents []intent.Intent, no
 		return writeJSON(writer, map[string]any{"intents": rows})
 	}
 	if len(intents) == 0 {
-		_, err := fmt.Fprintln(writer, "No accepted intents.")
+		_, err := fmt.Fprintln(writer, newTextStyle(writer).paint("i", color.Faint)+" No accepted intents.")
+		return err
+	}
+	if _, err := fmt.Fprintln(writer, newTextStyle(writer).heading("Intents")); err != nil {
 		return err
 	}
 	table := tabwriter.NewWriter(writer, 0, 4, 2, ' ', 0)
@@ -187,7 +190,7 @@ func writeApplyReport(writer io.Writer, jsonOutput, includeUnchanged bool, resul
 	style := newTextStyle(writer)
 	var text strings.Builder
 	if runErr != nil && report.Totals.Failed == 0 {
-		fmt.Fprintf(&text, "%s %s\n\n", style.paint("Apply failed:", color.FgHiRed), reportText(runErr.Error()))
+		fmt.Fprintf(&text, "%s %s\n\n", style.paint("✗ Apply failed:", color.FgHiRed), reportText(runErr.Error()))
 	}
 	fmt.Fprintf(&text, "%s %d total, %d applied, %d unchanged, %s; %d shown\n",
 		style.paint("Subjects:", color.Bold), report.Totals.Subjects, report.Totals.Applied, report.Totals.Unchanged, failedCount(style, report.Totals.Failed), len(report.Subjects))
@@ -219,7 +222,7 @@ func subjectStatus(result reconcile.Result) string {
 func subjectHeading(style textStyle, result reconcile.Result) string {
 	status := subjectStatus(result)
 	attribute := map[string]color.Attribute{"failed": color.FgHiRed, "applied": color.FgHiGreen, "unchanged": color.Faint}[status]
-	return fmt.Sprintf("%s %s (%s)\n", style.paint("Subject:", color.Bold), style.paint(reportText(result.Subject), color.Bold), style.paint(status, attribute))
+	return fmt.Sprintf("%s: %s\n", style.heading("Subject "+reportText(result.Subject)), style.paint(status, attribute))
 }
 
 // renderSubject renders one subject's report block.
@@ -230,13 +233,15 @@ func renderSubject(style textStyle, result reconcile.Result) string {
 		writePlanContext(&text, *result.Plan)
 	}
 	for _, group := range result.AddedGroups {
-		fmt.Fprintf(&text, "  %s %s\n", style.paint("Added:", color.FgHiGreen), reportText(group))
+		fmt.Fprintf(&text, "  %s %s\n", style.paint("✓ Added:", color.FgHiGreen), reportText(group))
 	}
 	for _, group := range result.RemovedGroups {
-		fmt.Fprintf(&text, "  %s %s\n", style.paint("Removed:", color.FgHiRed), reportText(group))
+		fmt.Fprintf(&text, "  %s %s\n", style.paint("✓ Removed:", color.FgHiGreen), reportText(group))
 	}
-	if result.FailedOperation != nil {
-		fmt.Fprintf(&text, "  %s %s %s\n", style.paint("Failed:", color.FgHiRed), reportText(result.FailedOperation.Action), reportText(result.FailedOperation.Group))
+	if result.Error != "" {
+		fmt.Fprintf(&text, "  %s %s\n", style.paint("✗", color.FgHiRed), reportText(result.Error))
+	} else if result.FailedOperation != nil {
+		fmt.Fprintf(&text, "  %s %s %s\n", style.paint("✗ Failed:", color.FgHiRed), reportText(result.FailedOperation.Action), reportText(result.FailedOperation.Group))
 	}
 	if result.Plan != nil {
 		writeOutstanding(&text, style, "add", result.Plan.AddGroups, result.AddedGroups, result.FailedOperation)
@@ -245,9 +250,6 @@ func renderSubject(style textStyle, result reconcile.Result) string {
 			fmt.Fprintf(&text, "  %s\n", noChangeReason(*result.Plan))
 		}
 		fmt.Fprintf(&text, "  Next intent boundary: %s\n", reportTime(result.Plan.NextTransition))
-	}
-	if result.Error != "" {
-		fmt.Fprintf(&text, "  %s %s\n", style.paint("Error:", color.FgHiRed), reportText(result.Error))
 	}
 	text.WriteByte('\n')
 	return text.String()
@@ -258,7 +260,7 @@ func writeOutstanding(text *strings.Builder, style textStyle, action string, pla
 		if slices.Contains(completed, group) || failed != nil && failed.Action == action && failed.Group == group {
 			continue
 		}
-		fmt.Fprintf(text, "  %s %s %s\n", style.paint("Not attempted:", color.FgHiYellow), action, reportText(group))
+		fmt.Fprintf(text, "  %s %s %s\n", style.paint("– Not attempted:", color.FgHiYellow), action, reportText(group))
 	}
 }
 
@@ -278,10 +280,10 @@ func writeIntent(writer io.Writer, jsonOutput bool, accepted intent.Intent, stat
 	}
 	style := newTextStyle(writer)
 	var text strings.Builder
-	fmt.Fprintf(&text, "%s %s\n", style.paint("Intent:", color.Bold), style.paint(reportText(accepted.Source)+"/"+reportText(accepted.ID), color.Bold))
+	fmt.Fprintln(&text, style.heading("Intent "+reportText(accepted.Source)+"/"+reportText(accepted.ID)))
 	fmt.Fprintf(&text, "  Subject: %s\n  Phase: %s\n", reportText(accepted.Subject), accepted.PhaseAt(now))
 	fmt.Fprintf(&text, "  Starts: %s\n  Ends: %s\n", accepted.StartsAt.Format(time.RFC3339), accepted.EndsAt.Format(time.RFC3339))
-	fmt.Fprintf(&text, "  Updated: %s\n\nSubject reconciliation:\n", accepted.UpdatedAt.Format(time.RFC3339))
+	fmt.Fprintf(&text, "  Updated: %s\n\n%s\n", accepted.UpdatedAt.Format(time.RFC3339), style.heading("Subject reconciliation"))
 	for _, field := range []struct {
 		name  string
 		value *time.Time
@@ -293,7 +295,7 @@ func writeIntent(writer io.Writer, jsonOutput bool, accepted intent.Intent, stat
 	}
 	fmt.Fprintf(&text, "  Retry count: %d\n", state.RetryCount)
 	if state.LastError != "" {
-		fmt.Fprintf(&text, "  %s %s\n", style.paint("Last error:", color.FgHiRed), reportText(state.LastError))
+		fmt.Fprintf(&text, "  %s %s\n", style.paint("✗ Last error:", color.FgHiRed), reportText(state.LastError))
 	}
 	_, err := io.WriteString(writer, text.String())
 	return err

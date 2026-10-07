@@ -89,10 +89,11 @@ func (o *commandOutput) finish(cmd *cobra.Command, err error) {
 	if o.reportError {
 		message = strings.SplitN(message, "\n", 2)[0]
 	}
+	style := newTextStyle(cmd.ErrOrStderr())
+	label := style.paint("✗", color.FgHiRed)
 	if interrupted {
-		message = "interrupted"
+		message, label = "Interrupted.", style.paint("–", color.FgHiYellow)
 	}
-	label := newTextStyle(cmd.ErrOrStderr()).paint("Error:", color.Bold, color.FgHiRed)
 	_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "%s %s\n", label, reportText(strings.Join(strings.Fields(message), " ")))
 }
 
@@ -203,7 +204,7 @@ func (h *activityHandler) Handle(ctx context.Context, record slog.Record) error 
 	if len(attrs) > 0 {
 		message += "; " + strings.Join(attrs, "; ")
 	}
-	line := o.style.paint("Warning:", color.FgHiYellow) + " " + reportText(message) + "\n"
+	line := o.style.paint("!", color.FgHiYellow) + " " + reportText(message) + "\n"
 	if o.progress != nil {
 		return o.progress.write(o.out, line)
 	}
