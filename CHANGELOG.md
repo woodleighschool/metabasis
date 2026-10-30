@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.0.1](https://github.com/woodleighschool/metabasis/compare/v4.0.0...v4.0.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* **go:** update module cel.dev/cel-go (v0.32.0 → v0.33.0) ([#183](https://github.com/woodleighschool/metabasis/issues/183)) ([167709e](https://github.com/woodleighschool/metabasis/commit/167709e9d79f35571728170417ecc0598428c6ef))
+* **go:** update module cel.dev/cel-go (v0.33.0 → v0.33.1) ([#186](https://github.com/woodleighschool/metabasis/issues/186)) ([b453fd8](https://github.com/woodleighschool/metabasis/commit/b453fd8c1e3398bae748773496f185ab2ee2ef5c))
+
 ## [4.0.0](https://github.com/woodleighschool/metabasis/compare/v3.1.2...v4.0.0) (2026-10-22)
 
 
