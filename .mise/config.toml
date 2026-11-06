@@ -36,8 +36,11 @@ description = "Vet Go code and run race-enabled tests"
 run = ["go vet ./...", "go test -race -count=1 ./..."]
 
 [tasks.test-postgres]
-description = "Run PostgreSQL integration tests"
-run = "go test -race -count=1 -tags=postgres ./internal/store ./internal/reconcile ./cmd/metabasis"
+description = "Run Go checks with PostgreSQL integration tests"
+run = [
+  "go vet -tags=postgres ./...",
+  "go test -race -count=1 -tags=postgres ./...",
+]
 
 [tasks.lint-fix]
 run = "golangci-lint run --fix"
