@@ -1,5 +1,21 @@
 # Changelog
 
+## [4.0.1](https://github.com/woodleighschool/metabasis/compare/v4.0.0...v4.0.1) (2026-11-06)
+
+
+### Bug Fixes
+
+* **go:** update module cel.dev/cel-go (v0.32.0 → v0.33.0) ([#183](https://github.com/woodleighschool/metabasis/issues/183)) ([167709e](https://github.com/woodleighschool/metabasis/commit/167709e9d79f35571728170417ecc0598428c6ef))
+* **go:** update module cel.dev/cel-go (v0.33.0 → v0.33.1) ([#186](https://github.com/woodleighschool/metabasis/issues/186)) ([b453fd8](https://github.com/woodleighschool/metabasis/commit/b453fd8c1e3398bae748773496f185ab2ee2ef5c))
+* **go:** update module cel.dev/cel-go (v0.33.1 → v0.33.2) ([#190](https://github.com/woodleighschool/metabasis/issues/190)) ([50fa049](https://github.com/woodleighschool/metabasis/commit/50fa049bd0e7c611c80be12fa9987f3c027f84ea))
+* **go:** update module github.com/azure/azure-sdk-for-go/sdk/azcore (v1.23.3 → v1.24.0) ([#198](https://github.com/woodleighschool/metabasis/issues/198)) ([67ba97b](https://github.com/woodleighschool/metabasis/commit/67ba97b4a456fd172fbd1ff6173c2094caa87f12))
+* **go:** update module github.com/caarlos0/env/v11 (v11.4.1 → v11.4.2) ([#197](https://github.com/woodleighschool/metabasis/issues/197)) ([2599dae](https://github.com/woodleighschool/metabasis/commit/2599dae423026abde229a8217e76f9c70941bf74))
+* **go:** update module github.com/jackc/pgx/v5 (v5.11.0 → v5.12.0) ([#191](https://github.com/woodleighschool/metabasis/issues/191)) ([6fee167](https://github.com/woodleighschool/metabasis/commit/6fee167c63ee03004525bc31fd2e6a8caacf4059))
+* **go:** update module go.yaml.in/yaml/v4 (v4.0.0-rc.6 → v4.0.0-rc.7) ([#193](https://github.com/woodleighschool/metabasis/issues/193)) ([58bbdc4](https://github.com/woodleighschool/metabasis/commit/58bbdc40df8a550b048067873536e2f760403e60))
+* **go:** update module go.yaml.in/yaml/v4 (v4.0.0-rc.7 → v4.0.0-rc.8) ([#194](https://github.com/woodleighschool/metabasis/issues/194)) ([58763ee](https://github.com/woodleighschool/metabasis/commit/58763eeb4f0685e1d5d24478d4fbf88eeaff145f))
+* **go:** update module go.yaml.in/yaml/v4 (v4.0.0-rc.8 → v4.0.0-rc.9) ([#195](https://github.com/woodleighschool/metabasis/issues/195)) ([9d01b9a](https://github.com/woodleighschool/metabasis/commit/9d01b9a8c927529dd9beb81a66d1ff60f061c417))
+* **go:** update module go.yaml.in/yaml/v4 (v4.0.0-rc.9 → v4.0.0) ([#199](https://github.com/woodleighschool/metabasis/issues/199)) ([bea1a62](https://github.com/woodleighschool/metabasis/commit/bea1a627c45246238a13037cf732f6ebf06e8e0d))
+
 ## [4.0.0](https://github.com/woodleighschool/metabasis/compare/v3.1.2...v4.0.0) (2026-10-22)
 
 
