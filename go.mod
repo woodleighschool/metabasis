@@ -15,7 +15,7 @@ require (
 	github.com/pressly/goose/v3 v3.29.0
 	github.com/prometheus/client_golang v1.25.0
 	github.com/spf13/cobra v1.10.2
-	go.yaml.in/yaml/v4 v4.0.0-rc.8
+	go.yaml.in/yaml/v4 v4.0.0-rc.9
 	golang.org/x/term v0.47.0
 )
 
