@@ -10,7 +10,7 @@ require (
 	github.com/dustin/go-humanize v1.1.0
 	github.com/fatih/color v1.19.0
 	github.com/invopop/jsonschema v0.14.0
-	github.com/jackc/pgx/v5 v5.12.0
+	github.com/jackc/pgx/v5 v5.13.0
 	github.com/mattn/go-runewidth v0.0.31
 	github.com/pressly/goose/v3 v3.30.0
 	github.com/prometheus/client_golang v1.25.0
