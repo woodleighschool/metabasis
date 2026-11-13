@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.0.2](https://github.com/woodleighschool/metabasis/compare/v4.0.1...v4.0.2) (2026-11-13)
+
+
+### Bug Fixes
+
+* **go:** update module github.com/jackc/pgx/v5 (v5.12.0 → v5.13.0) ([#207](https://github.com/woodleighschool/metabasis/issues/207)) ([316da55](https://github.com/woodleighschool/metabasis/commit/316da55dab8fefcb8e3d0cd40996e7de93488b92))
+* **go:** update module github.com/pressly/goose/v3 (v3.29.0 → v3.30.0) ([#205](https://github.com/woodleighschool/metabasis/issues/205)) ([bd33969](https://github.com/woodleighschool/metabasis/commit/bd3396936b54e5aa0000ecfa6a96198ef1f6fc13))
+* **go:** update module github.com/pressly/goose/v3 (v3.30.0 → v3.30.1) ([#208](https://github.com/woodleighschool/metabasis/issues/208)) ([c2ab035](https://github.com/woodleighschool/metabasis/commit/c2ab03581e97d17553b08ce5773c9b7e83751733))
+
 ## [4.0.1](https://github.com/woodleighschool/metabasis/compare/v4.0.0...v4.0.1) (2026-11-11)
 
 
